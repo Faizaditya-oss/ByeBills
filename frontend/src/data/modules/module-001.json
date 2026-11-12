@@ -1,0 +1,13 @@
+{
+  "id": "module-001",
+  "title": "Mengenal Pinjol: Legal OJK vs Ilegal",
+  "description": "Pelajari ciri-ciri pinjol legal berizin OJK dan bahaya tersembunyi pinjol ilegal yang menjerat.",
+  "category": "literasi_dasar",
+  "estimatedMinutes": 5,
+  "pointsReward": 20,
+  "badgeId": "badge-002",
+  "order": 1,
+  "isPublished": true,
+  "content": "# Mengenal Pinjol: Legal OJK vs Ilegal\n\nPinjaman online (fintech peer-to-peer lending) bisa menjadi solusi keuangan darurat, namun maraknya pinjol ilegal telah menjerat jutaan orang dalam pusaran utang yang tak berkesudahan.\n\n### Ciri-Ciri Pinjol Ilegal:\n1. Tidak terdaftar dan tidak berizin di OJK.\n2. Bunga dan denda sangat tinggi tanpa transparansi (bisa > 1% per hari).\n3. Meminta akses kontak, galeri, dan data pribadi di smartphone.\n4. Penagihan intimidatif, mengancam, dan menyebarkan data pribadi.\n5. Tidak memiliki alamat kantor fisik yang jelas.\n\n### Hak Anda Sebagai Konsumen:\nBerdasarkan regulasi OJK & AFPI, penyelenggara legal dilarang mengakses selain **CAMILAN** (Camera, Microphone, Location). Jika ada aplikasi meminta akses kontak telepon, itu adalah tanda pasti **pinjol ilegal**!"
+}
+

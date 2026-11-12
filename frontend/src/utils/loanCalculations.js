@@ -97,9 +97,12 @@ export function calculateLoanEstimatedInterest({
 }
 
 /**
- * Memeriksa apakah suatu tagihan sudah mendekati atau melewati jatuh tempo (mepet <= 3 hari)
+ * Memeriksa apakah suatu tagihan sudah mendekati atau melewati jatuh tempo (default: H-7 / mepet <= 7 hari)
+ *
+ * @param {string} dueDateStr - Format YYYY-MM-DD
+ * @param {number} [daysThreshold=7] - Ambang batas hari sebelum jatuh tempo (default: 7 hari / H-7)
  */
-export function checkUrgentDue(dueDateStr) {
+export function checkUrgentDue(dueDateStr, daysThreshold = 7) {
   if (!dueDateStr) {
     return { isUrgent: false, diffDays: null, isOverdue: false, isToday: false };
   }
@@ -118,7 +121,7 @@ export function checkUrgentDue(dueDateStr) {
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
   return {
-    isUrgent: diffDays <= 3,
+    isUrgent: diffDays <= daysThreshold,
     diffDays,
     isOverdue: diffDays < 0,
     isToday: diffDays === 0,

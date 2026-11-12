@@ -85,7 +85,7 @@ export default function LoansPage() {
     return getLoansByUser(userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [userId, refreshKey]);
 
-  // Tagihan yang deadline-nya mepet (<= 3 hari atau sudah lewat)
+  // Tagihan yang deadline-nya mepet (H-7 / <= 7 hari atau sudah lewat)
   const urgentLoans = useMemo(() => {
     return loans
       .filter((l) => l.status === 'aktif' && l.dueDate)

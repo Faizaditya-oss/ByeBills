@@ -47,7 +47,7 @@ export default function Sidebar({ onItemClick }) {
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-base font-bold text-white tracking-wide">BUBU</span>
+            <span className="text-base font-bold text-white tracking-wide">ByeBills</span>
             <span className="text-[10px] text-blue-400 block -mt-0.5 font-medium tracking-wider">
               FINTECH CARE
             </span>

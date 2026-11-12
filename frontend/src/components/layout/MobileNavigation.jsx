@@ -59,7 +59,7 @@ export default function MobileNavigation({ isOpen, onClose }) {
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-base font-bold text-white tracking-wide">BUBU</span>
+              <span className="text-base font-bold text-white tracking-wide">ByeBills</span>
               <span className="text-[10px] text-blue-400 block -mt-0.5 font-medium">
                 FINTECH CARE
               </span>

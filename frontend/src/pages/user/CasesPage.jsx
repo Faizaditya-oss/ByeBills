@@ -99,7 +99,7 @@ export default function CasesPage() {
       setIsFormOpen(false);
       setSelectedCaseId(res.id);
       setRefreshKey((k) => k + 1);
-      setStatusMsg('Pengaduan berhasil dikirim ke Admin CS BUBU.');
+      setStatusMsg('Pengaduan berhasil dikirim ke Admin CS ByeBills.');
       setTimeout(() => setStatusMsg(''), 4000);
     }
   };
@@ -158,7 +158,7 @@ export default function CasesPage() {
             Aduan & Bantuan Customer Service
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Laporkan intimidasi pinjol, suku bunga mencekik, atau konsultasikan solusi pelunasan dengan tim Admin CS BUBU.
+            Laporkan intimidasi pinjol, suku bunga mencekik, atau konsultasikan solusi pelunasan dengan tim Admin CS ByeBills.
           </p>
         </div>
         <button
@@ -403,7 +403,7 @@ export default function CasesPage() {
                   <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 text-xs text-slate-600 space-y-1 text-center">
                     <p className="font-semibold text-blue-900">Aduan Anda Sedang Mengantre Ditinjau</p>
                     <p className="text-[11px] text-slate-500">
-                      Tim Admin CS BUBU akan segera memberikan tanggapan dan panduan langkah pelunasan di sini.
+                      Tim Admin CS ByeBills akan segera memberikan tanggapan dan panduan langkah pelunasan di sini.
                     </p>
                   </div>
                 ) : (
@@ -416,8 +416,8 @@ export default function CasesPage() {
                           key={note.id}
                           className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
                             isUser
-                              ? 'bg-blue-50/50 border-blue-200 ml-6'
-                              : 'bg-emerald-50/50 border-emerald-200 mr-6'
+                              ? 'bg-blue-50/50 border-blue-200 ml-2 sm:ml-6'
+                              : 'bg-emerald-50/50 border-emerald-200 mr-2 sm:mr-6'
                           }`}
                         >
                           <div className="flex items-center justify-between text-[11px]">

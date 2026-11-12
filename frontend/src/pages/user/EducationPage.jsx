@@ -18,99 +18,8 @@ import {
   submitQuiz,
   getLatestQuizResult,
   getUserTotalPoints,
+  getActiveEducationModules,
 } from '../../services/storage.js';
-
-// Kurikulum Modul Edukasi Finansial BUBU
-const EDUCATION_MODULES = [
-  {
-    id: 'modul-001',
-    title: 'Mengenal Ciri-Ciri Pinjol Ilegal vs Legal OJK',
-    category: 'Legalitas & Regulasi',
-    readTime: '5 menit',
-    points: 15,
-    summary: 'Pahami cara membedakan platform berizin resmi OJK dengan jeratan pinjol ilegal predatory.',
-    content: `
-### 1. Ciri Utama Pinjol Legal Berizin OJK:
-- Terdaftar resmi di situs resmi OJK (ojk.go.id).
-- Bunga, denda, dan biaya transparan maksimal sesuai regulasi Asosiasi Fintech Pendanaan Bersama Indonesia (AFPI).
-- Hanya meminta akses izin smartphone terbatas: **CAMILAN** (Camera, Microphone, Location). Tidak boleh menyedot kontak atau galeri!
-- Memiliki layanan pengaduan konsumen yang jelas dan alamat kantor fisik yang valid.
-
-### 2. Tanda Bahaya Pinjol Ilegal:
-- Penawaran agresif via SMS/WhatsApp nomor acak tanpa pernah mendaftar.
-- Bunga harian sangat tinggi mencekik dan tenor pinjaman sangat singkat (misal 7 hari padahal dijanjikan 30 hari).
-- Meminta akses seluruh kontak telepon, galeri foto, dan data sensitif.
-- Menggunakan ancaman, intimidasi, dan penyebaran data pribadi saat penagihan.
-
-### 3. Langkah Pencegahan:
-Selalu cek legalitas entitas pinjol sebelum mengajukan pinjaman dengan menghubungi Kontak OJK 157 atau WhatsApp resmi 081-157-157-157.
-    `,
-  },
-  {
-    id: 'modul-002',
-    title: 'Prinsip Debt-to-Income Ratio & Anggaran Sehat',
-    category: 'Manajemen Keuangan',
-    readTime: '6 menit',
-    points: 15,
-    summary: 'Ketahui batas aman beban utang bulanan agar arus kas keuangan tidak defisit.',
-    content: `
-### 1. Apa itu Rasio DTI (Debt-to-Income)?
-Debt-to-Income Ratio adalah persentase total cicilan bulanan dibandingkan dengan penghasilan bersih bulanan Anda.
-
-### 2. Aturan Batas Maksimal 30%:
-- Idealnya, total seluruh cicilan utang bulanan tidak boleh melebihi **30% dari gaji bersih**.
-- Jika penghasilan Anda Rp4.000.000, maka batas maksimal cicilan gabungan adalah Rp1.200.000.
-- Rasio di atas 40% menandakan tanda bahaya (Financial Distress) yang rentan memicu gali lubang tutup lubang.
-
-### 3. Alokasi 50/30/20:
-- **50% Kebutuhan Pokok**: Makanan, tempat tinggal, transportasi, tagihan listrik & air.
-- **30% Keinginan & Cicilan Terkendali**: Hiburan, lifestyle, cicilan produktif.
-- **20% Tabungan & Dana Darurat**: Tabungan masa depan dan bantalan darurat.
-    `,
-  },
-  {
-    id: 'modul-003',
-    title: 'Strategi Pelunasan: Metode Snowball vs Avalanche',
-    category: 'Strategi Pelunasan',
-    readTime: '7 menit',
-    points: 20,
-    summary: 'Dua metode ilmiah terbukti ampuh melunasi banyak utang tanpa panik.',
-    content: `
-### 1. Metode Snowball (Fokus Kemenangan Mental):
-- Urutkan seluruh utang dari saldo nominal terkecil ke terbesar, tanpa melihat suku bunganya.
-- Bayar cicilan minimum di semua pinjaman, lalu alokasikan dana ekstra sebesar mungkin untuk melunasi utang terkecil lebih dahulu.
-- Setelah utang terkecil lunas, alihkan dana tersebut ke utang terkecil berikutnya. Kemenangan cepat ini memberi dorongan psikologis yang kuat.
-
-### 2. Metode Avalanche (Fokus Hemat Bunga Finansial):
-- Urutkan utang dari suku bunga persentase tertinggi ke suku bunga terendah.
-- Lunasi secepat mungkin pinjaman dengan bunga paling mencekik terlebih dahulu.
-- Secara matematis, metode ini menghemat biaya total bunga paling banyak.
-
-### 3. Rekomendasi BUBU:
-Pilihlah metode yang paling konsisten bisa Anda jalankan. Disiplin pencatatan harian adalah kunci keberhasilan.
-    `,
-  },
-  {
-    id: 'modul-004',
-    title: 'Menghadapi Teror Penagihan & Melapor Satgas',
-    category: 'Advokasi & Hak',
-    readTime: '5 menit',
-    points: 20,
-    summary: 'Pedoman menghadapi intimidasi oknum debt collector secara hukum yang aman dan sah.',
-    content: `
-### 1. Hak Anda sebagai Konsumen:
-- Penagihan tidak boleh menggunakan kekerasan fisik, ancaman verbal, atau mempermalukan nasabah.
-- Penagihan dilarang dilakukan di luar jam 08.00 - 20.00 waktu setempat.
-- Penagih dilarang menghubungi pihak di luar kontak darurat resmi yang disetujui.
-
-### 2. Langkah Pengamanan Saat Diteror:
-- Jangan panik dan jangan membalas dengan emosi.
-- Rekam bukti pesan singkat, rekaman suara, atau tangkapan layar intimidasi.
-- Buat Aduan resmi di sistem BUBU agar tercatat di kronologi bantuan.
-- Laporkan ke Satgas Pemberantasan Aktivitas Keuangan Ilegal (Satgas PASTI OJK) melalui email waspadainvestasi@ojk.go.id atau portal kontak157.ojk.go.id.
-    `,
-  },
-];
 
 // Pertanyaan Kuis Karakter Finansial
 const QUIZ_QUESTIONS = [
@@ -151,13 +60,19 @@ export default function EducationPage() {
   const userId = currentUser?.id;
 
   const [refreshKey, setRefreshKey] = useState(0);
-  const [selectedModule, setSelectedModule] = useState(EDUCATION_MODULES[0]);
   const [activeTab, setActiveTab] = useState('modules'); // 'modules' | 'quiz'
   const [notification, setNotification] = useState('');
 
   // Kuis state
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+
+  // Modul dari storage (admin dapat menambah/edit)
+  const educationModules = useMemo(() => getActiveEducationModules(), [refreshKey]);
+
+  // Modul yang dipilih — default ke modul pertama
+  const [selectedModule, setSelectedModule] = useState(null);
+  const activeSelectedModule = selectedModule ?? educationModules[0] ?? null;
 
   // Data progress modul user dari storage
   const userProgress = useMemo(() => {
@@ -198,7 +113,7 @@ export default function EducationPage() {
     });
 
     if (res) {
-      setNotification(`🎉 Selamat! Anda menyelesaikan modul dan mendapatkan +${mod.points} Poin BUBU!`);
+      setNotification(`🎉 Selamat! Anda menyelesaikan modul dan mendapatkan +${mod.points} Poin ByeBills!`);
       setRefreshKey((prev) => prev + 1);
     }
   };
@@ -240,8 +155,10 @@ export default function EducationPage() {
     }
   };
 
-  const completedCount = EDUCATION_MODULES.filter((m) => isModuleCompleted(m.id)).length;
-  const progressPercentage = Math.round((completedCount / EDUCATION_MODULES.length) * 100);
+  const completedCount = educationModules.filter((m) => isModuleCompleted(m.id)).length;
+  const progressPercentage = educationModules.length > 0
+    ? Math.round((completedCount / educationModules.length) * 100)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -257,7 +174,7 @@ export default function EducationPage() {
             Tingkatkan pemahaman finansial Anda untuk terbebas dari jerat utang, selesaikan modul edukasi, dan kumpulkan poin reward.
           </p>
         </div>
-        <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/20 text-center min-w-[140px]">
+        <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/20 text-center min-w-[140px] w-full sm:w-auto">
           <span className="text-xs text-emerald-100 block">Total Poin Anda</span>
           <span className="text-2xl font-black text-amber-300 flex items-center justify-center gap-1">
             <Sparkles className="w-5 h-5" />
@@ -283,20 +200,20 @@ export default function EducationPage() {
       )}
 
       {/* Tab Switcher */}
-      <div className="flex border-b border-slate-200 gap-6">
+      <div className="flex border-b border-slate-200 gap-4 sm:gap-6 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('modules')}
-          className={`pb-3 text-sm font-semibold transition border-b-2 ${
+          className={`pb-3 text-sm font-semibold transition border-b-2 shrink-0 whitespace-nowrap ${
             activeTab === 'modules'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          Kurikulum Modul ({completedCount}/{EDUCATION_MODULES.length})
+          Kurikulum Modul ({completedCount}/{educationModules.length})
         </button>
         <button
           onClick={() => setActiveTab('quiz')}
-          className={`pb-3 text-sm font-semibold transition border-b-2 flex items-center gap-2 ${
+          className={`pb-3 text-sm font-semibold transition border-b-2 flex items-center gap-2 shrink-0 whitespace-nowrap ${
             activeTab === 'quiz'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -333,9 +250,14 @@ export default function EducationPage() {
               <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
                 Daftar Materi
               </h2>
-              {EDUCATION_MODULES.map((mod) => {
+              {educationModules.length === 0 ? (
+                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400">
+                  Belum ada modul edukasi yang tersedia.
+                </div>
+              ) : (
+              educationModules.map((mod) => {
                 const completed = isModuleCompleted(mod.id);
-                const isSelected = selectedModule?.id === mod.id;
+                const isSelected = activeSelectedModule?.id === mod.id;
 
                 return (
                   <div
@@ -373,31 +295,32 @@ export default function EducationPage() {
                     </div>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
 
             {/* Konten Bacaan Modul (Kolom Kanan) */}
             <div className="lg:col-span-2">
-              {selectedModule ? (
+              {activeSelectedModule ? (
                 <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-6">
                   <div className="border-b border-slate-100 pb-4">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
-                        {selectedModule.category}
+                        {activeSelectedModule.category}
                       </span>
                       <span className="text-xs text-slate-500 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> {selectedModule.readTime}
+                        <Clock className="w-3.5 h-3.5" /> {activeSelectedModule.readTime}
                       </span>
                     </div>
                     <h2 className="text-xl font-bold text-slate-800 mt-1">
-                      {selectedModule.title}
+                      {activeSelectedModule.title}
                     </h2>
-                    <p className="text-sm text-slate-500 mt-1">{selectedModule.summary}</p>
+                    <p className="text-sm text-slate-500 mt-1">{activeSelectedModule.summary}</p>
                   </div>
 
                   {/* Body Content */}
                   <div className="prose prose-slate max-w-none text-sm text-slate-700 leading-relaxed whitespace-pre-line space-y-3">
-                    {selectedModule.content}
+                    {activeSelectedModule.content}
                   </div>
 
                   {/* Tombol Aksi */}
@@ -405,20 +328,20 @@ export default function EducationPage() {
                     <div className="text-xs text-slate-500">
                       Reward Modul:{' '}
                       <strong className="text-emerald-700 font-bold">
-                        +{selectedModule.points} Poin BUBU
+                        +{activeSelectedModule.points} Poin ByeBills
                       </strong>
                     </div>
 
-                    {isModuleCompleted(selectedModule.id) ? (
+                    {isModuleCompleted(activeSelectedModule.id) ? (
                       <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-semibold">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Modul Telah Diselesaikan
                       </div>
                     ) : (
                       <button
-                        onClick={() => handleCompleteModule(selectedModule)}
+                        onClick={() => handleCompleteModule(activeSelectedModule)}
                         className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2 shadow-sm transition"
                       >
-                        <CheckCircle2 className="w-4 h-4" /> Tandai Selesai & Klaim +{selectedModule.points} Poin
+                        <CheckCircle2 className="w-4 h-4" /> Tandai Selesai & Klaim +{activeSelectedModule.points} Poin
                       </button>
                     )}
                   </div>

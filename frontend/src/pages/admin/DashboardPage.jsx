@@ -156,18 +156,18 @@ export default function DashboardPage() {
           <div className="space-y-2 max-w-xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-medium border border-indigo-400/30">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Pusat Kendali & Tata Kelola Sistem BUBU</span>
+              <span>Pusat Kendali & Tata Kelola Sistem ByeBills</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
               Halo, {currentUser?.name || 'Administrator'}! 👑
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Pantau seluruh aktivitas penanganan kasus, alokasi konselor, verifikasi pembayaran, serta kesehatan operasional platform penanganan pinjol BUBU.
+              Pantau seluruh aktivitas penanganan kasus, alokasi konselor, verifikasi pembayaran, serta kesehatan operasional platform penanganan pinjol ByeBills.
             </p>
           </div>
 
           {/* Kartu Status Operasional */}
-          <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 flex items-center gap-4 self-start md:self-auto shrink-0">
+          <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 flex items-center gap-4 w-full sm:w-auto self-start md:self-auto shrink-0">
             <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center justify-center">
               <Sparkles className="w-6 h-6" />
             </div>

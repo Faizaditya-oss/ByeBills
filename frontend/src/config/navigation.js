@@ -22,7 +22,7 @@ export const ROLE_NAVIGATION = {
     { label: 'Pembayaran', path: '/payments', icon: Receipt },
     { label: 'Bukti & Poin', path: '/proofs', icon: Sparkles },
     { label: 'Edukasi', path: '/education', icon: BookOpen },
-    { label: 'Toko Reward', path: '/rewards', icon: Gift },
+    { label: 'Riwayat Poin', path: '/rewards', icon: Award },
     { label: 'Profil', path: '/profile', icon: User },
   ],
   admin: [

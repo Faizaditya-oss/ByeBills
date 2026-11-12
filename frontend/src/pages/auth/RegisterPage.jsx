@@ -155,7 +155,7 @@ export default function RegisterPage() {
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mb-1">
               <ShieldCheck className="w-7 h-7" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Daftar Akun BUBU</h1>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Daftar Akun ByeBills</h1>
             <p className="text-sm text-slate-500">
               Mulai langkah pemulihan finansial dan pendampingan bebas jeratan pinjol
             </p>

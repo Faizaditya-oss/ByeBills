@@ -10,6 +10,7 @@
  */
 
 import { ALL_INITIAL_DATA, hashPassword } from '../data/initialData.js';
+import { ACCESSORY_CATALOG } from '../data/characterAccessories.js';
 
 // ─── KONSTANTA KEY ────────────────────────────────────────────────────────────
 export const STORAGE_KEYS = {
@@ -32,6 +33,7 @@ export const STORAGE_KEYS = {
   BADGES: 'BUBU_badges',
   USER_BADGES: 'BUBU_userBadges',
   ACTIVITY_PROOFS: 'BUBU_activityProofs',
+  EDUCATION_MODULES: 'BUBU_educationModules',
   INITIALIZED: 'BUBU_initialized',   // Flag: apakah data awal sudah dimuat
 };
 
@@ -55,6 +57,7 @@ const ENTITY_KEY_MAP = {
   badges: STORAGE_KEYS.BADGES,
   userBadges: STORAGE_KEYS.USER_BADGES,
   activityProofs: STORAGE_KEYS.ACTIVITY_PROOFS,
+  educationModules: STORAGE_KEYS.EDUCATION_MODULES,
 };
 
 // ─── HELPERS INTERNAL ─────────────────────────────────────────────────────────
@@ -407,6 +410,14 @@ export function createLoan(data) {
 
 export function updateLoan(id, changes) {
   return updateItem(STORAGE_KEYS.LOANS, id, changes);
+}
+
+export function deleteLoan(id) {
+  // Bersihkan juga rencana pelunasan (repayment plans) yang terkait dengan pinjaman ini
+  const plans = filterItems(STORAGE_KEYS.REPAYMENT_PLANS, { loanId: id });
+  plans.forEach((p) => deleteItem(STORAGE_KEYS.REPAYMENT_PLANS, p.id));
+
+  return deleteItem(STORAGE_KEYS.LOANS, id);
 }
 
 // ─── PAYMENTS ────────────────────────────────────────────────────────────────
@@ -934,6 +945,50 @@ export function getLatestQuizResult(userId) {
   return list[0] || null;
 }
 
+// ─── EDUCATION MODULES (CRUD oleh Admin) ─────────────────────────────────────
+
+export function getAllEducationModules() {
+  let modules = getAll(STORAGE_KEYS.EDUCATION_MODULES);
+  if (!modules || modules.length === 0) {
+    if (ALL_INITIAL_DATA?.educationModules && ALL_INITIAL_DATA.educationModules.length > 0) {
+      writeStore(STORAGE_KEYS.EDUCATION_MODULES, ALL_INITIAL_DATA.educationModules);
+      modules = ALL_INITIAL_DATA.educationModules;
+    }
+  }
+  return (modules || []).sort(
+    (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+  );
+}
+
+export function getActiveEducationModules() {
+  return getAllEducationModules().filter((m) => m.isActive !== false);
+}
+
+export function createEducationModule({ title, category, readTime, points, summary, content, createdBy }) {
+  if (!title || !content) return { error: 'Judul dan konten modul wajib diisi.' };
+  return addItem(STORAGE_KEYS.EDUCATION_MODULES, {
+    title: title.trim(),
+    category: category?.trim() || 'Umum',
+    readTime: readTime?.trim() || '5 menit',
+    points: Number(points) || 15,
+    summary: summary?.trim() || '',
+    content: content.trim(),
+    isActive: true,
+    createdBy: createdBy || null,
+  });
+}
+
+export function updateEducationModule(id, changes) {
+  return updateItem(STORAGE_KEYS.EDUCATION_MODULES, id, {
+    ...changes,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export function deleteEducationModule(id) {
+  return deleteItem(STORAGE_KEYS.EDUCATION_MODULES, id);
+}
+
 // ─── USER EDUCATION PROGRESS ─────────────────────────────────────────────────
 
 export function getProgressByUser(userId) {
@@ -1186,6 +1241,105 @@ export function useItem(userItemId) {
   });
 
   return { userItem: updated };
+}
+
+// ─── CHARACTER ACCESSORIES ───────────────────────────────────────────────────
+
+export function getUserAvatarConfig(userId) {
+  const user = getById(STORAGE_KEYS.USERS, userId);
+  return {
+    equippedAccessories: user?.equippedAccessories || [],
+    unlockedAccessories: user?.unlockedAccessories || [],
+  };
+}
+
+export function equipAccessory(userId, accessoryId) {
+  const user = getById(STORAGE_KEYS.USERS, userId);
+  if (!user) return { error: 'Pengguna tidak ditemukan.' };
+
+  const unlocked = user.unlockedAccessories || [];
+  if (!unlocked.includes(accessoryId)) {
+    return { error: 'Aksesori ini belum Anda miliki.' };
+  }
+
+  let equipped = [...(user.equippedAccessories || [])];
+  const accItem = ACCESSORY_CATALOG.find((a) => a.id === accessoryId);
+
+  // Jika sudah terpasang, lepas (unequip)
+  if (equipped.includes(accessoryId)) {
+    equipped = equipped.filter((id) => id !== accessoryId);
+  } else {
+    // Jika ada aksesori lain di slot yang sama, ganti dengan yang baru
+    if (accItem) {
+      const sameSlotAccs = ACCESSORY_CATALOG.filter((a) => a.slot === accItem.slot).map((a) => a.id);
+      equipped = equipped.filter((id) => !sameSlotAccs.includes(id));
+    }
+    equipped.push(accessoryId);
+  }
+
+  const updated = updateUser(userId, { equippedAccessories: equipped });
+  return { success: true, equippedAccessories: equipped, user: updated };
+}
+
+export function purchaseAccessory(userId, accessoryId) {
+  const accItem = ACCESSORY_CATALOG.find((a) => a.id === accessoryId);
+  if (!accItem) return { error: 'Aksesori tidak ditemukan.' };
+
+  const user = getById(STORAGE_KEYS.USERS, userId);
+  if (!user) return { error: 'Pengguna tidak ditemukan.' };
+
+  const unlocked = user.unlockedAccessories || [];
+  if (unlocked.includes(accessoryId)) {
+    return { error: 'Aksesori ini sudah Anda miliki.' };
+  }
+
+  const totalPoints = getUserTotalPoints(userId);
+  if (totalPoints < accItem.pointsCost) {
+    return {
+      error: `Poin tidak mencukupi. Dibutuhkan ${accItem.pointsCost} poin, saldo Anda ${totalPoints} poin.`,
+    };
+  }
+
+  // 1. Potong poin user
+  updateUserPoints(userId, -accItem.pointsCost);
+
+  // 2. Catat transaksi pengurangan poin ke riwayat
+  addItem(STORAGE_KEYS.POINTS, {
+    userId,
+    amount: -accItem.pointsCost,
+    type: 'redeemed',
+    source: 'accessory_purchased',
+    referenceId: accessoryId,
+    description: `Beli aksesori karakter: ${accItem.name}`,
+  });
+
+  // 3. Tambahkan ke koleksi milik user dan pasang di karakternya
+  const newUnlocked = [...unlocked, accessoryId];
+  let equipped = [...(user.equippedAccessories || [])];
+  const sameSlotAccs = ACCESSORY_CATALOG.filter((a) => a.slot === accItem.slot).map((a) => a.id);
+  equipped = equipped.filter((id) => !sameSlotAccs.includes(id));
+  equipped.push(accessoryId);
+
+  const updated = updateUser(userId, {
+    unlockedAccessories: newUnlocked,
+    equippedAccessories: equipped,
+  });
+
+  // 4. Tambah notifikasi perolehan reward
+  addItem(STORAGE_KEYS.NOTIFICATIONS, {
+    userId,
+    title: 'Aksesori Karakter Baru!',
+    message: `Aksesori "${accItem.name}" berhasil dibuka dan dipasang pada karakter profil Anda.`,
+    type: 'success',
+    isRead: false,
+  });
+
+  return {
+    success: true,
+    unlockedAccessories: newUnlocked,
+    equippedAccessories: equipped,
+    user: updated,
+  };
 }
 
 // ─── BADGES & USER BADGES ────────────────────────────────────────────────────

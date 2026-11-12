@@ -27,19 +27,21 @@ import {
   Star,
   BrainCircuit,
   HelpCircle,
+  Wallet,
+  Clock,
+  Sparkles,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { createRepaymentPlan, getFinancialProfileByUser } from '../services/storage.js';
+import {
+  formatRupiah,
+  calculateLoanEstimatedInterest,
+  checkUrgentDue,
+} from '../utils/loanCalculations.js';
 import RepaymentAssessmentModal from './RepaymentAssessmentModal.jsx';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-
-function formatRupiah(val) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(val || 0);
-}
 
 function addMonths(dateStr, n) {
   const d = new Date(dateStr);
@@ -199,10 +201,35 @@ export default function RepaymentPlanner({ loans, userId }) {
     [loans]
   );
 
+  // Rincian pinjaman beserta kalkulasi bunga dan status urgensi deadline
+  const loansWithDetails = useMemo(() => {
+    return activeLoans.map((l) => {
+      const interestInfo = calculateLoanEstimatedInterest(l);
+      const urgentInfo = checkUrgentDue(l.dueDate);
+      return {
+        ...l,
+        interestInfo,
+        urgentInfo,
+      };
+    });
+  }, [activeLoans]);
+
   const totalDebt = useMemo(
     () => activeLoans.reduce((s, l) => s + (l.currentBalance || 0), 0),
     [activeLoans]
   );
+
+  const totalEstimatedInterestAll = useMemo(
+    () => loansWithDetails.reduce((s, l) => s + (l.interestInfo?.totalInterest || 0), 0),
+    [loansWithDetails]
+  );
+
+  const totalObligationWithInterest = totalDebt + totalEstimatedInterestAll;
+
+  // Profil Finansial (Saldo & Pengeluaran Pengguna)
+  const userBalance = Number(financialProfile?.userBalance) || 0;
+  const dailyExpense = Number(financialProfile?.dailyExpense) || 0;
+  const monthlyExpense = Number(financialProfile?.monthlyExpense) || 0;
 
   const budget = Number(monthlyBudget);
   const budgetReady = budget > 0;
@@ -284,7 +311,7 @@ export default function RepaymentPlanner({ loans, userId }) {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-300">
-                Sistem Rekomendasi Pintar BUBU
+                Sistem Rekomendasi Pintar ByeBills
               </span>
               {assessedStrategy && (
                 <span className="text-[10px] bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
@@ -310,42 +337,140 @@ export default function RepaymentPlanner({ loans, userId }) {
         </button>
       </div>
 
-      {/* ─── LANGKAH 1: RINGKASAN PINJAMAN & INPUT BUDGET ─────────────────── */}
+      {/* ─── LANGKAH 1: KONDISI FINANSIAL & RINGKASAN PINJAMAN DENGAN BUNGA ─────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-5">
+        
+        {/* Ringkasan Profil Saldo & Pengeluaran Pengguna */}
+        {(userBalance > 0 || monthlyExpense > 0 || dailyExpense > 0) && (
+          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50/60 to-slate-50 border border-emerald-200/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                <Wallet className="w-3.5 h-3.5 text-emerald-700" />
+                Kondisi Finansial &amp; Likuiditas Anda
+              </span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
+                Data Tersinkronisasi
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100">
+                <span className="text-[10px] text-slate-500 block">Saldo Tabungan Tersedia</span>
+                <span className="text-sm font-extrabold text-emerald-700">
+                  {formatRupiah(userBalance)}
+                </span>
+              </div>
+              <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100">
+                <span className="text-[10px] text-slate-500 block">Pengeluaran Rata-rata Bulanan</span>
+                <span className="text-sm font-extrabold text-slate-800">
+                  {formatRupiah(monthlyExpense)}
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  ({formatRupiah(dailyExpense)} / hari)
+                </span>
+              </div>
+              <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100">
+                <span className="text-[10px] text-slate-500 block">Kecukupan Saldo vs Total Hutang</span>
+                <span className={`text-xs font-bold block ${userBalance >= totalObligationWithInterest ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {userBalance >= totalObligationWithInterest
+                    ? `✓ Cukup (Sisa: ${formatRupiah(userBalance - totalObligationWithInterest)})`
+                    : `⚠️ Defisit ${formatRupiah(totalObligationWithInterest - userBalance)}`}
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  Sudah memperhitungkan bunga
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div>
-          <h2 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-            <TrendingDown className="w-4 h-4 text-blue-600" />
-            Pinjaman yang Terdeteksi Sistem
-          </h2>
-          <div className="space-y-2">
-            {activeLoans.map((loan, idx) => (
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <TrendingDown className="w-4 h-4 text-blue-600" />
+              Pinjaman yang Terdeteksi Sistem (Dihitung Beserta Bunga)
+            </h2>
+            <span className="text-[11px] text-slate-500 font-medium">
+              {activeLoans.length} pinjaman aktif
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {loansWithDetails.map((loan, idx) => (
               <div
                 key={loan.id}
-                className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100"
+                className={`p-3.5 rounded-xl border transition ${
+                  loan.urgentInfo?.isUrgent
+                    ? 'bg-amber-50/50 border-amber-300 ring-1 ring-amber-100'
+                    : 'bg-slate-50 border-slate-100'
+                }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center shrink-0">
-                    {idx + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-800 truncate">{loan.platform}</p>
-                    <p className="text-[11px] text-slate-500">
-                      Pokok: {formatRupiah(loan.originalAmount)} · Bunga: {loan.interestRate}% / {loan.interestPeriod}
-                      {!loan.isOjkRegistered && (
-                        <span className="ml-1.5 text-rose-600 font-semibold">· Pinjol Ilegal</span>
-                      )}
-                    </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-slate-800 truncate">{loan.platform}</p>
+                        <span
+                          className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
+                            loan.isOjkRegistered
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {loan.isOjkRegistered ? 'OJK' : 'Ilegal'}
+                        </span>
+                        {loan.urgentInfo?.isUrgent && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-white font-bold flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" />
+                            {loan.urgentInfo.isOverdue
+                              ? `Lewat ${Math.abs(loan.urgentInfo.diffDays)} hari!`
+                              : loan.urgentInfo.isToday
+                              ? 'Hari Ini!'
+                              : `${loan.urgentInfo.diffDays} hari lagi`}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Bunga: <strong>{loan.interestRate}%</strong> / {loan.interestPeriod} · Tempo: {loan.dueDate} (estimasi {loan.interestInfo?.durationDays} hari)
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-bold text-slate-900">{formatRupiah(loan.currentBalance)}</p>
-                  <p className="text-[10px] text-slate-400">sisa tagihan</p>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-4 text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60">
+                    <div>
+                      <p className="text-[10px] text-slate-400">Sisa Pokok</p>
+                      <p className="text-xs font-semibold text-slate-700">{formatRupiah(loan.currentBalance)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400">Estimasi Bunga</p>
+                      <p className="text-xs font-semibold text-rose-600">+{formatRupiah(loan.interestInfo?.totalInterest)}</p>
+                    </div>
+                    <div className="bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                      <p className="text-[10px] text-blue-700 font-medium">Total Tagihan</p>
+                      <p className="text-xs font-extrabold text-blue-900">{formatRupiah(loan.interestInfo?.totalObligation)}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
-            <div className="flex justify-between items-center px-3 pt-1">
-              <span className="text-xs text-slate-500 font-medium">Total sisa tagihan yang harus dilunasi</span>
-              <span className="text-sm font-extrabold text-slate-900">{formatRupiah(totalDebt)}</span>
+
+            {/* Total Keseluruhan (Pokok + Bunga) */}
+            <div className="p-3.5 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div>
+                <span className="text-xs font-medium text-slate-300 block">
+                  Total Seluruh Kewajiban (Pokok + Akumulasi Bunga)
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Pokok: {formatRupiah(totalDebt)} · Total Estimasi Bunga: +{formatRupiah(totalEstimatedInterestAll)}
+                </span>
+              </div>
+              <div className="text-right self-end sm:self-auto">
+                <span className="text-base sm:text-lg font-black text-emerald-400">
+                  {formatRupiah(totalObligationWithInterest)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -355,22 +480,51 @@ export default function RepaymentPlanner({ loans, userId }) {
           <label className="text-xs font-bold text-slate-700 block">
             Berapa kemampuan bayar Anda per bulan?
           </label>
-          <div className="relative max-w-xs">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold select-none">
-              Rp
-            </span>
-            <input
-              type="number"
-              min="0"
-              step="50000"
-              value={monthlyBudget}
-              onChange={handleBudgetChange}
-              placeholder="cth: 1.500.000"
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative max-w-xs flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold select-none">
+                Rp
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="50000"
+                value={monthlyBudget}
+                onChange={handleBudgetChange}
+                placeholder="cth: 1.500.000"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Quick Preset Buttons jika ada saldo */}
+            {userBalance > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const half = Math.round(userBalance / 2);
+                    setMonthlyBudget(String(half));
+                    setShowSchedule(false);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200 transition cursor-pointer shrink-0"
+                >
+                  Gunakan 50% Saldo ({formatRupiah(Math.round(userBalance / 2))})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMonthlyBudget(String(userBalance));
+                    setShowSchedule(false);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition cursor-pointer shrink-0"
+                >
+                  Gunakan Semua Saldo ({formatRupiah(userBalance)})
+                </button>
+              </div>
+            )}
           </div>
           <p className="text-[11px] text-slate-400">
-            Sistem BUBU akan memprioritaskan alokasi dana ini ke pinjaman sesuai metode pilihan.
+            Sistem ByeBills akan memprioritaskan alokasi dana ini ke pinjaman sesuai metode pilihan Anda.
           </p>
         </div>
       </div>
@@ -594,38 +748,49 @@ export default function RepaymentPlanner({ loans, userId }) {
               {result.schedule[0]?.payments
                 .slice()
                 .sort((a, b) => b.payment - a.payment)
-                .map((p, idx) => (
-                  <div
-                    key={p.id}
-                    className={`flex items-center justify-between p-3 rounded-xl ${
-                      idx === 0
-                        ? 'bg-white/20 border border-white/30'
-                        : 'bg-white/8 border border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                        idx === 0 ? 'bg-white text-slate-800' : 'bg-white/20 text-white/80'
-                      }`}>
-                        {idx + 1}
+                .map((p, idx) => {
+                  const matchingLoan = loansWithDetails.find((l) => l.id === p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={`flex items-center justify-between p-3.5 rounded-xl ${
+                        idx === 0
+                          ? 'bg-white/20 border border-white/30'
+                          : 'bg-white/8 border border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                          idx === 0 ? 'bg-white text-slate-800' : 'bg-white/20 text-white/80'
+                        }`}>
+                          {idx + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs font-semibold text-white truncate">{p.platform}</p>
+                            {matchingLoan?.urgentInfo?.isUrgent && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400 text-slate-900 font-extrabold flex items-center gap-0.5">
+                                <Clock className="w-2.5 h-2.5" /> Mepet ({matchingLoan.dueDate})
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-white/70">
+                            Bunga: {formatRupiah(Math.round(p.interest))} · Pokok: {formatRupiah(Math.round(p.principal))}
+                            {matchingLoan?.dueDate && ` · Batas: ${matchingLoan.dueDate}`}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-white truncate">{p.platform}</p>
-                        <p className="text-[10px] text-white/60">
-                          Bunga: {formatRupiah(Math.round(p.interest))} · Pokok: {formatRupiah(Math.round(p.principal))}
-                        </p>
+                      <div className="text-right shrink-0 ml-2">
+                        <p className="text-sm font-extrabold text-white">{formatRupiah(Math.round(p.payment))}</p>
+                        {idx === 0 && (
+                          <span className="text-[9px] font-bold bg-white/20 px-1.5 py-0.5 rounded text-white/90">
+                            PRIORITAS #1
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0 ml-2">
-                      <p className="text-sm font-extrabold text-white">{formatRupiah(Math.round(p.payment))}</p>
-                      {idx === 0 && (
-                        <span className="text-[9px] font-bold bg-white/20 px-1.5 py-0.5 rounded text-white/90">
-                          PRIORITAS
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
             <p className="text-[11px] text-white/50 text-center pt-1">
               Total dialokasikan bulan ini: {formatRupiah(budget)}

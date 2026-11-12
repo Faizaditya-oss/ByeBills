@@ -51,7 +51,7 @@ export default function Topbar({ onToggleMobile }) {
             Sistem Aktif &bull; Portal
           </span>
           <span className="text-xs font-semibold text-slate-700 sm:font-bold">
-            {getRoleDisplayName(role)} BUBU
+            {getRoleDisplayName(role)} ByeBills
           </span>
         </div>
       </div>

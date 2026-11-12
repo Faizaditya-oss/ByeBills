@@ -83,23 +83,23 @@ export default function UsersPage() {
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Daftar Pengguna Sistem</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Kelola data akun pengguna dan hak akses aplikasi BUBU.
+            Kelola data akun pengguna dan hak akses aplikasi ByeBills.
           </p>
         </div>
 
         {/* Ringkasan Angka */}
-        <div className="flex gap-3">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
-            <span className="text-[11px] text-slate-500 block uppercase font-bold">Total User</span>
-            <span className="text-xl font-bold text-slate-800">{totalUserRole}</span>
+        <div className="grid grid-cols-3 sm:flex gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl px-2 sm:px-4 py-2 sm:py-2.5 text-center flex-1">
+            <span className="text-[10px] sm:text-[11px] text-slate-500 block uppercase font-bold">Total User</span>
+            <span className="text-lg sm:text-xl font-bold text-slate-800">{totalUserRole}</span>
           </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
-            <span className="text-[11px] text-slate-500 block uppercase font-bold">Admin</span>
-            <span className="text-xl font-bold text-indigo-600">{totalAdminRole}</span>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl px-2 sm:px-4 py-2 sm:py-2.5 text-center flex-1">
+            <span className="text-[10px] sm:text-[11px] text-slate-500 block uppercase font-bold">Admin</span>
+            <span className="text-lg sm:text-xl font-bold text-indigo-600">{totalAdminRole}</span>
           </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
-            <span className="text-[11px] text-slate-500 block uppercase font-bold">Aktif</span>
-            <span className="text-xl font-bold text-emerald-600">{activeCount}</span>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl px-2 sm:px-4 py-2 sm:py-2.5 text-center flex-1">
+            <span className="text-[10px] sm:text-[11px] text-slate-500 block uppercase font-bold">Aktif</span>
+            <span className="text-lg sm:text-xl font-bold text-emerald-600">{activeCount}</span>
           </div>
         </div>
       </div>

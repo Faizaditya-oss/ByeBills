@@ -198,7 +198,7 @@ export default function VerificationsPage() {
             </button>
             <img
               src={previewImage}
-              alt="Preview Bukti Aktivitas"
+              alt="Preview Bukti"
               className="rounded-xl max-h-[80vh] object-contain w-full"
             />
           </div>
@@ -396,77 +396,128 @@ export default function VerificationsPage() {
               Tidak ada data pembayaran.
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    <tr>
-                      <th className="p-4">Pengguna</th>
-                      <th className="p-4">Jumlah</th>
-                      <th className="p-4">Metode</th>
-                      <th className="p-4">Tanggal</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {allPayments.map((pay) => {
-                      const payer = getUserById(pay.userId);
-                      const isPending = pay.status === 'menunggu_verifikasi';
-                      return (
-                        <tr key={pay.id} className="hover:bg-slate-50/60 transition">
-                          <td className="p-4">
-                            <div className="font-semibold text-slate-800">{payer?.name || 'User'}</div>
-                            <div className="text-xs text-slate-400">{payer?.email}</div>
-                          </td>
-                          <td className="p-4 font-bold text-slate-800">
-                            Rp {pay.amount?.toLocaleString('id-ID')}
-                          </td>
-                          <td className="p-4 text-xs text-slate-600 capitalize">
-                            {pay.paymentMethod?.replace(/_/g, ' ')}
-                          </td>
-                          <td className="p-4 text-xs text-slate-500">
-                            {new Date(pay.createdAt).toLocaleDateString('id-ID')}
-                          </td>
-                          <td className="p-4">
-                            <span
-                              className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                                pay.status === 'terverifikasi'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : pay.status === 'ditolak'
-                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                  : 'bg-amber-50 text-amber-700 border-amber-200'
-                              }`}
-                            >
-                              {pay.status}
-                            </span>
-                          </td>
-                          <td className="p-4 text-right">
-                            {isPending ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => handleVerifyPayment(pay)}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition"
-                                >
-                                  Verifikasi
-                                </button>
-                                <button
-                                  onClick={() => handleRejectPayment(pay)}
-                                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-xs border border-rose-200 transition"
-                                >
-                                  Tolak
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-slate-400">Sudah diproses</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {allPayments.map((pay) => {
+                const payer = getUserById(pay.userId);
+                const isPending = pay.status === 'menunggu_verifikasi';
+                const hasProof = pay.proofFileName && pay.proofFileName.startsWith('data:image');
+
+                return (
+                  <div
+                    key={pay.id}
+                    className={`bg-white rounded-xl border p-5 shadow-sm space-y-4 ${
+                      isPending ? 'border-indigo-300' : 'border-slate-200'
+                    }`}
+                  >
+                    {/* Meta atas */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${
+                              pay.status === 'terverifikasi'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : pay.status === 'ditolak'
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                          >
+                            {pay.status}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-700 capitalize">
+                            {pay.paymentMethod?.replace(/_/g, ' ') || 'Transfer Bank'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 flex items-center gap-1 mt-1.5">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{payer?.name || pay.userId}</span>
+                          {payer?.email && (
+                            <span className="text-slate-400">— {payer.email}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="text-base font-black text-slate-800">
+                          Rp {pay.amount?.toLocaleString('id-ID')}
+                        </div>
+                        <div className="text-xs text-slate-400 flex items-center gap-1 justify-end mt-0.5">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(pay.createdAt).toLocaleDateString('id-ID')}
+                        </div>
+                        {pay.status === 'terverifikasi' && pay.pointsAwarded > 0 && (
+                          <div className="text-emerald-600 font-semibold flex items-center justify-end gap-0.5 mt-0.5 text-xs">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            +{pay.pointsAwarded} pts
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Catatan pembayaran */}
+                    {pay.notes && (
+                      <p className="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-100 leading-relaxed">
+                        {pay.notes}
+                      </p>
+                    )}
+
+                    {/* Gambar Bukti Pembayaran */}
+                    {hasProof ? (
+                      <div
+                        className="relative rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 transition"
+                        style={{ maxHeight: 200 }}
+                        onClick={() => setPreviewImage(pay.proofFileName)}
+                      >
+                        <img
+                          src={pay.proofFileName}
+                          alt="Bukti Pembayaran"
+                          className="w-full object-cover"
+                          style={{ maxHeight: 200 }}
+                        />
+                        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded flex items-center gap-1">
+                          <Eye className="w-3 h-3" /> Lihat Bukti
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-slate-300" />
+                        Tidak ada bukti gambar yang diunggah
+                      </div>
+                    )}
+
+                    {/* Alasan penolakan */}
+                    {pay.status === 'ditolak' && pay.rejectionReason && (
+                      <div className="text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-lg p-2.5">
+                        <span className="font-bold">Alasan Penolakan:</span> {pay.rejectionReason}
+                      </div>
+                    )}
+
+                    {/* Aksi */}
+                    {isPending && (
+                      <div className="flex gap-2 pt-2 border-t border-slate-100">
+                        <button
+                          onClick={() => handleVerifyPayment(pay)}
+                          className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Verifikasi
+                        </button>
+                        <button
+                          onClick={() => handleRejectPayment(pay)}
+                          className="flex-1 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition border border-rose-200"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Tolak
+                        </button>
+                      </div>
+                    )}
+
+                    {!isPending && (
+                      <div className="text-xs text-slate-400 pt-1 border-t border-slate-100">
+                        Sudah diproses
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

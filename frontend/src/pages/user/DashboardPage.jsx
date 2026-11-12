@@ -17,6 +17,7 @@ import {
   ArrowRight,
   TrendingUp,
   Sparkles,
+  Award,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
@@ -116,7 +117,7 @@ export default function DashboardPage() {
               <span>Ruang Pemulihan Finansial Gen Z</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Halo, {currentUser?.name || 'Sobat BUBU'}! 👋
+              Halo, {currentUser?.name || 'Sobat ByeBills'}! 👋
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
               Pantau penyelesaian pinjol, verifikasi pembayaran, dan kumpulkan poin reward untuk melangkah menuju bebas utang.
@@ -124,10 +125,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Kartu Mini Poin & Streak */}
-          <div className="flex items-center gap-3 self-start md:self-auto shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto self-start md:self-auto shrink-0">
             {/* Total Poin */}
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center">
+            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 flex-1 sm:flex-initial">
+              <div className="w-11 h-11 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center shrink-0">
                 <Coins className="w-6 h-6" />
               </div>
               <div>
@@ -141,8 +142,8 @@ export default function DashboardPage() {
             </div>
 
             {/* Streak Harian */}
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center justify-center">
+            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 flex-1 sm:flex-initial">
+              <div className="w-11 h-11 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center justify-center shrink-0">
                 <Flame className="w-6 h-6" />
               </div>
               <div>
@@ -512,9 +513,9 @@ export default function DashboardPage() {
                 to="/rewards"
                 className="p-3 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 transition text-center group"
               >
-                <Gift className="w-5 h-5 mx-auto text-slate-600 group-hover:text-blue-600 mb-1.5 transition-colors" />
+                <Award className="w-5 h-5 mx-auto text-slate-600 group-hover:text-blue-600 mb-1.5 transition-colors" />
                 <span className="text-xs font-semibold text-slate-700 group-hover:text-blue-700 block">
-                  Toko Reward
+                  Riwayat Poin
                 </span>
               </Link>
             </div>

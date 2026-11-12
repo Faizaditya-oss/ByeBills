@@ -192,7 +192,7 @@ export default function RepaymentAssessmentModal({
           <p className="text-xs text-blue-100/80 mt-1 leading-relaxed">
             {result
               ? 'Berdasarkan kepribadian dan kondisi psikologis finansial Anda.'
-              : 'Jawab 5 pertanyaan singkat agar sistem BUBU dapat merekomendasikan strategi Avalanche vs Snowball paling tepat.'}
+              : 'Jawab 5 pertanyaan singkat agar sistem ByeBills dapat merekomendasikan strategi Avalanche vs Snowball paling tepat.'}
           </p>
 
           {!result && (
@@ -315,11 +315,11 @@ export default function RepaymentAssessmentModal({
                     : 'Anda tipe yang termotivasi oleh momentum dan ketenangan pikiran. Menuntaskan pinjaman bersaldo terkecil lebih dahulu akan mengurangi stres dan meningkatkan rasa percaya diri Anda.'}
                 </p>
 
-                <div className="flex justify-center gap-4 pt-2 text-xs font-semibold text-slate-600">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 pt-2 text-xs font-semibold text-slate-600">
                   <span className="flex items-center gap-1 text-rose-700">
                     <Zap className="w-3.5 h-3.5" /> Skor Avalanche: {result.avalancheScore}
                   </span>
-                  <span className="text-slate-300">•</span>
+                  <span className="hidden sm:inline text-slate-300">•</span>
                   <span className="flex items-center gap-1 text-blue-700">
                     <Trophy className="w-3.5 h-3.5" /> Skor Snowball: {result.snowballScore}
                   </span>

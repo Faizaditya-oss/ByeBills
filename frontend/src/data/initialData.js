@@ -49,6 +49,8 @@ export const initialUsers = [
     role: 'user',
     phone: '08111000001',
     avatarUrl: null,
+    equippedAccessories: ['acc_glasses_smart'],
+    unlockedAccessories: ['acc_glasses_smart'],
     bio: 'Karyawan swasta yang sedang berupaya melunasi pinjaman online.',
     specialization: null,
     joinedAt: '2026-10-01T08:00:00.000Z',
@@ -574,6 +576,63 @@ export const initialActivityProofs = [
   },
 ];
 
+// ─── EDUCATION MODULES ───────────────────────────────────────────────────────
+// Modul edukasi yang dapat dikelola admin (tambah/edit/hapus)
+export const initialEducationModules = [
+  {
+    id: 'modul-001',
+    title: 'Mengenal Ciri-Ciri Pinjol Ilegal vs Legal OJK',
+    category: 'Legalitas & Regulasi',
+    readTime: '5 menit',
+    points: 15,
+    summary: 'Pahami cara membedakan platform berizin resmi OJK dengan jeratan pinjol ilegal predatory.',
+    content: `### 1. Ciri Utama Pinjol Legal Berizin OJK:\n- Terdaftar resmi di situs resmi OJK (ojk.go.id).\n- Bunga, denda, dan biaya transparan maksimal sesuai regulasi Asosiasi Fintech Pendanaan Bersama Indonesia (AFPI).\n- Hanya meminta akses izin smartphone terbatas: **CAMILAN** (Camera, Microphone, Location). Tidak boleh menyedot kontak atau galeri!\n- Memiliki layanan pengaduan konsumen yang jelas dan alamat kantor fisik yang valid.\n\n### 2. Tanda Bahaya Pinjol Ilegal:\n- Penawaran agresif via SMS/WhatsApp nomor acak tanpa pernah mendaftar.\n- Bunga harian sangat tinggi mencekik dan tenor pinjaman sangat singkat (misal 7 hari padahal dijanjikan 30 hari).\n- Meminta akses seluruh kontak telepon, galeri foto, dan data sensitif.\n- Menggunakan ancaman, intimidasi, dan penyebaran data pribadi saat penagihan.\n\n### 3. Langkah Pencegahan:\nSelalu cek legalitas entitas pinjol sebelum mengajukan pinjaman dengan menghubungi Kontak OJK 157 atau WhatsApp resmi 081-157-157-157.`,
+    isActive: true,
+    createdBy: 'admin-001',
+    createdAt: '2026-08-01T07:00:00.000Z',
+    updatedAt: '2026-08-01T07:00:00.000Z',
+  },
+  {
+    id: 'modul-002',
+    title: 'Prinsip Debt-to-Income Ratio & Anggaran Sehat',
+    category: 'Manajemen Keuangan',
+    readTime: '6 menit',
+    points: 15,
+    summary: 'Ketahui batas aman beban utang bulanan agar arus kas keuangan tidak defisit.',
+    content: `### 1. Apa itu Rasio DTI (Debt-to-Income)?\nDebt-to-Income Ratio adalah persentase total cicilan bulanan dibandingkan dengan penghasilan bersih bulanan Anda.\n\n### 2. Aturan Batas Maksimal 30%:\n- Idealnya, total seluruh cicilan utang bulanan tidak boleh melebihi **30% dari gaji bersih**.\n- Jika penghasilan Anda Rp4.000.000, maka batas maksimal cicilan gabungan adalah Rp1.200.000.\n- Rasio di atas 40% menandakan tanda bahaya (Financial Distress) yang rentan memicu gali lubang tutup lubang.\n\n### 3. Alokasi 50/30/20:\n- **50% Kebutuhan Pokok**: Makanan, tempat tinggal, transportasi, tagihan listrik & air.\n- **30% Keinginan & Cicilan Terkendali**: Hiburan, lifestyle, cicilan produktif.\n- **20% Tabungan & Dana Darurat**: Tabungan masa depan dan bantalan darurat.`,
+    isActive: true,
+    createdBy: 'admin-001',
+    createdAt: '2026-08-01T07:00:00.000Z',
+    updatedAt: '2026-08-01T07:00:00.000Z',
+  },
+  {
+    id: 'modul-003',
+    title: 'Strategi Pelunasan: Metode Snowball vs Avalanche',
+    category: 'Strategi Pelunasan',
+    readTime: '7 menit',
+    points: 20,
+    summary: 'Dua metode ilmiah terbukti ampuh melunasi banyak utang tanpa panik.',
+    content: `### 1. Metode Snowball (Fokus Kemenangan Mental):\n- Urutkan seluruh utang dari saldo nominal terkecil ke terbesar, tanpa melihat suku bunganya.\n- Bayar cicilan minimum di semua pinjaman, lalu alokasikan dana ekstra sebesar mungkin untuk melunasi utang terkecil lebih dahulu.\n- Setelah utang terkecil lunas, alihkan dana tersebut ke utang terkecil berikutnya. Kemenangan cepat ini memberi dorongan psikologis yang kuat.\n\n### 2. Metode Avalanche (Fokus Hemat Bunga Finansial):\n- Urutkan utang dari suku bunga persentase tertinggi ke suku bunga terendah.\n- Lunasi secepat mungkin pinjaman dengan bunga paling mencekik terlebih dahulu.\n- Secara matematis, metode ini menghemat biaya total bunga paling banyak.\n\n### 3. Rekomendasi ByeBills:\nPilihlah metode yang paling konsisten bisa Anda jalankan. Disiplin pencatatan harian adalah kunci keberhasilan.`,
+    isActive: true,
+    createdBy: 'admin-001',
+    createdAt: '2026-08-01T07:00:00.000Z',
+    updatedAt: '2026-08-01T07:00:00.000Z',
+  },
+  {
+    id: 'modul-004',
+    title: 'Menghadapi Teror Penagihan & Melapor Satgas',
+    category: 'Advokasi & Hak',
+    readTime: '5 menit',
+    points: 20,
+    summary: 'Pedoman menghadapi intimidasi oknum debt collector secara hukum yang aman dan sah.',
+    content: `### 1. Hak Anda sebagai Konsumen:\n- Penagihan tidak boleh menggunakan kekerasan fisik, ancaman verbal, atau mempermalukan nasabah.\n- Penagihan dilarang dilakukan di luar jam 08.00 - 20.00 waktu setempat.\n- Penagih dilarang menghubungi pihak di luar kontak darurat resmi yang disetujui.\n\n### 2. Langkah Pengamanan Saat Diteror:\n- Jangan panik dan jangan membalas dengan emosi.\n- Rekam bukti pesan singkat, rekaman suara, atau tangkapan layar intimidasi.\n- Buat Aduan resmi di sistem ByeBills agar tercatat di kronologi bantuan.\n- Laporkan ke Satgas Pemberantasan Aktivitas Keuangan Ilegal (Satgas PASTI OJK) melalui email waspadainvestasi@ojk.go.id atau portal kontak157.ojk.go.id.`,
+    isActive: true,
+    createdBy: 'admin-001',
+    createdAt: '2026-08-01T07:00:00.000Z',
+    updatedAt: '2026-08-01T07:00:00.000Z',
+  },
+];
+
 // ─── EXPORT SEMUA DATA AWAL ───────────────────────────────────────────────────
 export const ALL_INITIAL_DATA = {
   users: initialUsers,
@@ -595,4 +654,5 @@ export const ALL_INITIAL_DATA = {
   badges: initialBadges,
   userBadges: initialUserBadges,
   activityProofs: initialActivityProofs,
+  educationModules: initialEducationModules,
 };

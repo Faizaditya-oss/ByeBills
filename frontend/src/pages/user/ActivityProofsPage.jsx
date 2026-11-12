@@ -318,7 +318,7 @@ export default function ActivityProofsPage() {
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-sm font-bold text-slate-800">Daftar Bukti Aktivitas Saya</h2>
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
             {['semua', 'pending', 'approved', 'rejected'].map((st) => (
               <button
                 key={st}

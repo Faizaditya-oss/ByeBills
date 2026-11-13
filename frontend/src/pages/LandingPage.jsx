@@ -24,18 +24,19 @@ export default function LandingPage() {
       {/* ── 1. NAVBAR ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-xl font-black bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent">
-                ByeBills
-              </span>
-              <span className="block text-[10px] text-slate-400 font-semibold tracking-wider uppercase -mt-1">
-                Bebas Pinjol Gen Z
-              </span>
-            </div>
+          <Link to="/" className="flex items-center group">
+            {/* Logo Navbar Mobile (< 640px) */}
+            <img
+              src="/navbar-mobile.svg"
+              alt="ByeBills"
+              className="h-9 w-auto sm:hidden group-hover:opacity-90 transition-opacity"
+            />
+            {/* Logo Navbar Desktop (>= 640px) */}
+            <img
+              src="/navbar.svg"
+              alt="ByeBills"
+              className="h-9 w-auto hidden sm:block group-hover:opacity-90 transition-opacity"
+            />
           </Link>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">

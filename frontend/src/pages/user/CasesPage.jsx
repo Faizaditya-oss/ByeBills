@@ -81,7 +81,7 @@ export default function CasesPage() {
     const res = createCase({
       userId,
       title: formData.title.trim(),
-      platform: formData.platform.trim() || 'Pinjol Lainnya',
+      platform: formData.platform.trim() || 'Pinjaman Lainnya',
       category: formData.category,
       priority: formData.priority,
       description: formData.description.trim(),

@@ -456,7 +456,7 @@ export const initialShopItems = [
   {
     id: 'shop-002',
     name: 'E-Book: Jurus Ampuh Negosiasi Debt Collector',
-    description: 'Panduan langkah demi langkah menghadapi penagih pinjol ilegal sesuai koridor hukum OJK & AFPI.',
+    description: 'Panduan langkah demi langkah menghadapi penagih pinjaman ilegal sesuai koridor hukum OJK & AFPI.',
     category: 'voucher',
     pointsCost: 100,
     stock: null, // unlimited
@@ -544,7 +544,7 @@ export const initialActivityProofs = [
     id: 'proof-001',
     userId: 'user-001',
     title: 'Bukti Pembayaran Pokok & Surat Lunas',
-    description: 'Struk transfer cicilan pelunasan pinjol dan tangkapan layar status lunas dari platform.',
+    description: 'Struk transfer cicilan pelunasan pinjaman dan tangkapan layar status lunas dari platform.',
     category: 'pembayaran',
     imagePath: '/images/proof-sample-1.jpg',
     fileSizeKb: 120,

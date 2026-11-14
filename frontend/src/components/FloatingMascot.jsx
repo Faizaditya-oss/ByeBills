@@ -91,7 +91,7 @@ export default function FloatingMascot() {
       {!isOpen && showTooltip && (
         <div className="absolute bottom-20 right-0 sm:right-1 bg-white text-slate-800 text-xs font-semibold px-3 py-1.5 rounded-xl shadow-lg border border-emerald-100 flex items-center gap-1.5 whitespace-nowrap animate-bounce">
           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>Tanya Bubu Seputar Finansial!</span>
+          <span>Tanya ByeBills Seputar Finansial!</span>
           <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-white border-b border-r border-emerald-100 transform rotate-45" />
         </div>
       )}
@@ -107,7 +107,7 @@ export default function FloatingMascot() {
               </div>
               <div>
                 <h3 className="text-sm font-bold leading-tight flex items-center gap-1.5">
-                  Tanya Bubu &bull; FAQ Finansial
+                  Tanya ByeBills &bull; FAQ Finansial
                 </h3>
                 <p className="text-[11px] text-emerald-100 leading-tight mt-0.5">
                   Jawaban &amp; solusi praktis seputar pinjaman untukmu

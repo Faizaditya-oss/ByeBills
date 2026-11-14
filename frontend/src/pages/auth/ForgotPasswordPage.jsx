@@ -66,9 +66,12 @@ export default function ForgotPasswordPage() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-5 text-center">
+            <div className="flex justify-center mb-1">
+              <img src="/assets/navbar.svg" alt="ByeBills" className="h-9 w-auto" />
+            </div>
             <div className="flex justify-center">
-              <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -130,9 +133,7 @@ export default function ForgotPasswordPage() {
           {/* Header */}
           <div className="text-center space-y-2">
             <div className="flex justify-center mb-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                <KeyRound className="w-6 h-6 text-emerald-600" />
-              </div>
+              <img src="/assets/navbar.svg" alt="ByeBills" className="h-9 w-auto" />
             </div>
             <h1 className="text-lg font-bold text-slate-800">Lupa Password?</h1>
             <p className="text-sm text-slate-500">

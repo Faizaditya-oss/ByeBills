@@ -16,10 +16,9 @@ import {
   Clock,
   AlertTriangle,
   Wallet,
-  ArrowRight,
   Sparkles,
-  Info,
   CalendarDays,
+  Info,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
@@ -35,38 +34,124 @@ import {
 import { compressImage } from '../../utils/imageCompressor.js';
 import {
   formatRupiah,
-  calculateLoanEstimatedInterest,
   checkUrgentDue,
+  calculateLoanEstimatedInterest,
 } from '../../utils/loanCalculations.js';
 import RepaymentPlanner from '../../components/RepaymentPlanner.jsx';
 import EditBalanceModal from '../../components/EditBalanceModal.jsx';
+
+// ─── HELPERS KALKULASI CICILAN ────────────────────────────────────────────────
+
+/**
+ * Hitung cicilan per bulan & total bayar.
+ * @param {object} p
+ * @param {number} p.principal       - Pinjaman pokok (Rp)
+ * @param {number} p.ratePerMonth    - Bunga per bulan (desimal, misal 0.02)
+ * @param {number} p.tenor           - Tenor (bulan)
+ * @param {string} p.interestType    - 'efektif' | 'flat'
+ * @param {number} p.adminFee        - Biaya admin total (Rp)
+ * @param {number} p.latePenaltyPct  - Denda telat (% dari cicilan)
+ * @returns {{ monthlyPayment, totalPayment, totalInterestAndFee, monthlyInterest, monthlyPrincipal }}
+ */
+function calcLoan({ principal, ratePerMonth, tenor, interestType, adminFee = 0 }) {
+  if (!principal || !tenor || tenor <= 0) {
+    return { monthlyPayment: 0, totalPayment: 0, totalInterestAndFee: 0, valid: false };
+  }
+
+  let monthlyPayment = 0;
+
+  if (interestType === 'flat') {
+    // Flat: bunga dihitung dari pokok awal, dibagi rata tiap bulan
+    const monthlyInterest = principal * ratePerMonth;
+    const monthlyPrincipal = principal / tenor;
+    monthlyPayment = monthlyPrincipal + monthlyInterest;
+  } else {
+    // Efektif / Anuitas (PMT formula)
+    if (ratePerMonth === 0) {
+      monthlyPayment = principal / tenor;
+    } else {
+      const r = ratePerMonth;
+      monthlyPayment = (principal * r * Math.pow(1 + r, tenor)) / (Math.pow(1 + r, tenor) - 1);
+    }
+  }
+
+  monthlyPayment = Math.ceil(monthlyPayment);
+  const totalPayment = monthlyPayment * tenor + adminFee;
+  const totalInterestAndFee = totalPayment - principal;
+
+  return { monthlyPayment, totalPayment, totalInterestAndFee, valid: true };
+}
+
+/** Format tanggal DD-MM-YYYY */
+function formatTanggal(dateInput) {
+  if (!dateInput) return '-';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return String(dateInput);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+/** Tambah bulan ke tanggal string, kembalikan DD-MM-YYYY */
+function addMonthsFormatted(isoDate, monthsToAdd) {
+  const d = new Date(isoDate);
+  d.setMonth(d.getMonth() + monthsToAdd);
+  return formatTanggal(d);
+}
+
+// Nama bulan Indonesia
+const BULAN_ID = [
+  'Januari','Februari','Maret','April','Mei','Juni',
+  'Juli','Agustus','September','Oktober','November','Desember',
+];
+
+/** Kembalikan "DD Bulan YYYY" dari tanggal */
+function formatTanggalPanjang(dateInput) {
+  if (!dateInput) return '-';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '-';
+  return `${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// ─── KONSTANTA FORM ───────────────────────────────────────────────────────────
+
+const EMPTY_FORM = {
+  platform: '',
+  ojkStatus: '',           // 'ojk' | 'ilegal' | 'tidak_tahu'
+  tenor: '',
+  interestRate: '',        // % per bulan
+  interestType: '',        // 'efektif' | 'flat'
+  adminFee: '',
+  latePenalty: '',         // % dari cicilan
+  dueDateDay: '',          // 1–31 (hari jatuh tempo tiap bulan)
+  currentBalance: '',      // pokok pinjaman
+};
+
+const OJK_LABEL = {
+  ojk: 'Berizin OJK',
+  ilegal: 'Ilegal',
+  tidak_tahu: 'Tidak Tahu',
+};
+
+// ─── KOMPONEN UTAMA ───────────────────────────────────────────────────────────
 
 export default function LoansPage() {
   const { currentUser } = useAuth();
   const userId = currentUser?.id;
 
-  const [activeTab, setActiveTab] = useState('daftar'); // 'daftar' | 'simulasi'
+  const [activeTab, setActiveTab] = useState('daftar');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditBalanceModalOpen, setIsEditBalanceModalOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [isUrgentModalDismissed, setIsUrgentModalDismissed] = useState(false);
 
-  const [formData, setFormData] = useState({
-    platform: '',
-    originalAmount: '',
-    currentBalance: '',
-    interestRate: '',
-    interestPeriod: 'bulanan',
-    loanStartDate: new Date().toISOString().slice(0, 10),
-    dueDate: '',
-    isOjkRegistered: false,
-    userBalance: '',
-    dailyExpense: '',
-    monthlyExpense: '',
-  });
+  // Form state
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState({});
 
-  // State untuk Modal Hapus / Selesaikan Pinjaman
+  // Modal hapus / pelunasan
   const [selectedLoanToDelete, setSelectedLoanToDelete] = useState(null);
   const [loanPayments, setLoanPayments] = useState([]);
   const [settlementAmount, setSettlementAmount] = useState('');
@@ -76,6 +161,8 @@ export default function LoansPage() {
   const [isCompressingProof, setIsCompressingProof] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
+
+  // ── Data ──────────────────────────────────────────────────────────────────
 
   const userProfile = useMemo(() => {
     if (!userId) return null;
@@ -87,170 +174,185 @@ export default function LoansPage() {
     return getLoansByUser(userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [userId, refreshKey]);
 
-  // Tagihan yang deadline-nya mepet (H-7 / <= 7 hari atau sudah lewat)
   const urgentLoans = useMemo(() => {
     return loans
       .filter((l) => l.status === 'aktif' && l.dueDate)
-      .map((l) => {
-        const urgentInfo = checkUrgentDue(l.dueDate);
-        const interestInfo = calculateLoanEstimatedInterest(l);
-        return {
-          ...l,
-          ...urgentInfo,
-          ...interestInfo,
-        };
-      })
+      .map((l) => ({ ...l, ...checkUrgentDue(l.dueDate) }))
       .filter((l) => l.isUrgent)
       .sort((a, b) => (a.diffDays ?? 999) - (b.diffDays ?? 999));
   }, [loans]);
 
-  // Statistik Ringkasan (Pokok & Estimasi Total Beserta Bunga)
   const stats = useMemo(() => {
     let totalDebt = 0;
+    let totalObligation = 0;
     let totalEstimatedInterest = 0;
     let legalCount = 0;
     let illegalCount = 0;
+    let unknownCount = 0;
 
     loans.forEach((l) => {
       if (l.status === 'aktif') {
-        totalDebt += l.currentBalance || 0;
-        const interestData = calculateLoanEstimatedInterest(l);
-        totalEstimatedInterest += interestData.totalInterest || 0;
-        if (l.isOjkRegistered) legalCount++;
-        else illegalCount++;
+        const principal = Number(l.currentBalance || l.originalAmount || 0);
+        totalDebt += principal;
+
+        if (l.tenor && Number(l.tenor) > 0) {
+          const calc = calcLoan({
+            principal,
+            ratePerMonth: (Number(l.interestRate) || 0) / 100,
+            tenor: Number(l.tenor),
+            interestType: l.interestType || 'efektif',
+            adminFee: Number(l.adminFee) || 0,
+          });
+          totalObligation += calc.totalPayment;
+          totalEstimatedInterest += calc.totalInterestAndFee;
+        } else {
+          const est = calculateLoanEstimatedInterest(l);
+          totalObligation += est.totalObligation;
+          totalEstimatedInterest += est.totalInterest;
+        }
+
+        const ojk = l.ojkStatus || (l.isOjkRegistered ? 'ojk' : 'ilegal');
+        if (ojk === 'ojk') legalCount++;
+        else if (ojk === 'ilegal') illegalCount++;
+        else unknownCount++;
       }
     });
 
     return {
       totalDebt,
+      totalObligation,
       totalEstimatedInterest,
-      totalObligation: totalDebt + totalEstimatedInterest,
       legalCount,
       illegalCount,
+      unknownCount,
       totalCount: loans.filter((l) => l.status === 'aktif').length,
     };
   }, [loans]);
 
-  const handleToggleForm = () => {
-    if (!isFormOpen && userProfile) {
-      setFormData((prev) => ({
-        ...prev,
-        userBalance: prev.userBalance || (userProfile.userBalance != null ? String(userProfile.userBalance) : ''),
-        dailyExpense: prev.dailyExpense || (userProfile.dailyExpense != null ? String(userProfile.dailyExpense) : ''),
-        monthlyExpense: prev.monthlyExpense || (userProfile.monthlyExpense != null ? String(userProfile.monthlyExpense) : ''),
-      }));
-    }
-    setIsFormOpen((prev) => !prev);
-  };
+  // ── Kalkulasi Live Form ───────────────────────────────────────────────────
+
+  const liveCalc = useMemo(() => {
+    const principal = Number(form.currentBalance) || 0;
+    const ratePerMonth = (Number(form.interestRate) || 0) / 100;
+    const tenor = Number(form.tenor) || 0;
+    const adminFee = Number(form.adminFee) || 0;
+    const interestType = form.interestType || 'efektif';
+
+    if (!principal || !tenor || !form.interestRate) return null;
+
+    return calcLoan({ principal, ratePerMonth, tenor, interestType, adminFee });
+  }, [form.currentBalance, form.interestRate, form.tenor, form.interestType, form.adminFee]);
+
+  // Sisa uang bulanan setelah cicilan dikurangi
+  const userBalance = Number(userProfile?.userBalance) || 0;
+  const monthlyExpense = Number(userProfile?.monthlyExpense) || 0;
+  const afterInstallment = userBalance > 0 && liveCalc?.valid
+    ? userBalance - (liveCalc.monthlyPayment + monthlyExpense)
+    : null;
+
+  // ── Form handlers ─────────────────────────────────────────────────────────
 
   const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
-      setFormData((prev) => ({ ...prev, [name]: checked }));
-      return;
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    // Hapus error field yang baru diisi
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({ ...prev, [name]: '' }));
     }
-
-    if (name === 'dailyExpense') {
-      const num = parseFloat(value);
-      setFormData((prev) => ({
-        ...prev,
-        dailyExpense: value,
-        monthlyExpense: !isNaN(num) && num >= 0 ? String(Math.round(num * 30)) : prev.monthlyExpense,
-      }));
-      return;
-    }
-
-    if (name === 'monthlyExpense') {
-      const num = parseFloat(value);
-      setFormData((prev) => ({
-        ...prev,
-        monthlyExpense: value,
-        dailyExpense: !isNaN(num) && num >= 0 ? String(Math.round(num / 30)) : prev.dailyExpense,
-      }));
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
   };
 
-  // Estimasi Live Bunga & Total untuk Form Tambah Pinjaman
-  const liveEstimated = useMemo(() => {
-    return calculateLoanEstimatedInterest({
-      currentBalance: formData.currentBalance,
-      originalAmount: formData.originalAmount,
-      interestRate: formData.interestRate,
-      interestPeriod: formData.interestPeriod,
-      loanStartDate: formData.loanStartDate,
-      dueDate: formData.dueDate,
+  // Validasi semua field wajib
+  const validateForm = () => {
+    const required = {
+      platform: 'Nama pinjaman',
+      ojkStatus: 'Status penyedia',
+      tenor: 'Tenor (bulan)',
+      interestRate: 'Bunga per bulan',
+      interestType: 'Jenis bunga',
+      adminFee: 'Biaya admin',
+      latePenalty: 'Denda telat',
+      dueDateDay: 'Tanggal jatuh tempo',
+      currentBalance: 'Jumlah pinjaman pokok',
+    };
+
+    const errors = {};
+    Object.entries(required).forEach(([key, label]) => {
+      const val = form[key];
+      if (!val || String(val).trim() === '') {
+        errors[key] = `${label} wajib diisi.`;
+      }
     });
-  }, [
-    formData.currentBalance,
-    formData.originalAmount,
-    formData.interestRate,
-    formData.interestPeriod,
-    formData.loanStartDate,
-    formData.dueDate,
-  ]);
+
+    // Range validasi
+    if (form.dueDateDay && (Number(form.dueDateDay) < 1 || Number(form.dueDateDay) > 31)) {
+      errors.dueDateDay = 'Tanggal jatuh tempo harus antara 1–31.';
+    }
+    if (form.tenor && Number(form.tenor) <= 0) {
+      errors.tenor = 'Tenor harus lebih dari 0.';
+    }
+    if (form.interestRate && Number(form.interestRate) < 0) {
+      errors.interestRate = 'Bunga tidak boleh negatif.';
+    }
+    if (form.currentBalance && Number(form.currentBalance) <= 0) {
+      errors.currentBalance = 'Jumlah pinjaman harus lebih dari 0.';
+    }
+
+    return errors;
+  };
 
   const handleCreateLoan = (e) => {
     e.preventDefault();
-    if (!formData.platform.trim() || !formData.currentBalance) {
-      setStatusMsg('Nama platform dan sisa tagihan wajib diisi.');
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
 
+    // Buat dueDate dari hari ini + tenor (pakai tanggal jatuh tempo per bulan)
+    const now = new Date();
+    const startIso = now.toISOString().slice(0, 10);
+    // Jatuh tempo: N bulan dari sekarang, pada tanggal dueDateDay
+    const dueD = new Date(now);
+    dueD.setMonth(dueD.getMonth() + Number(form.tenor));
+    dueD.setDate(Math.min(Number(form.dueDateDay), 28)); // cap 28 untuk keamanan
+    const dueIso = dueD.toISOString().slice(0, 10);
+
+    const isOjkRegistered = form.ojkStatus === 'ojk';
+
     const res = createLoan({
       userId,
-      platform: formData.platform.trim(),
-      originalAmount: Number(formData.originalAmount) || Number(formData.currentBalance),
-      currentBalance: Number(formData.currentBalance),
-      interestRate: Number(formData.interestRate) || 0,
-      interestPeriod: formData.interestPeriod || 'bulanan',
-      loanStartDate: formData.loanStartDate || new Date().toISOString().slice(0, 10),
-      dueDate: formData.dueDate || new Date().toISOString().slice(0, 10),
-      isOjkRegistered: Boolean(formData.isOjkRegistered),
+      platform: form.platform.trim(),
+      originalAmount: Number(form.currentBalance),
+      currentBalance: Number(form.currentBalance),
+      interestRate: Number(form.interestRate),
+      interestPeriod: 'bulanan',
+      interestType: form.interestType,
+      adminFee: Number(form.adminFee) || 0,
+      latePenalty: Number(form.latePenalty) || 0,
+      dueDateDay: Number(form.dueDateDay),
+      tenor: Number(form.tenor),
+      loanStartDate: startIso,
+      dueDate: dueIso,
+      isOjkRegistered,
+      ojkStatus: form.ojkStatus,
       status: 'aktif',
-      userBalanceAtEntry: Number(formData.userBalance) || 0,
-      dailyExpense: Number(formData.dailyExpense) || 0,
-      monthlyExpense: Number(formData.monthlyExpense) || 0,
     });
 
     if (res && res.id) {
-      if (userId && (formData.userBalance || formData.dailyExpense || formData.monthlyExpense)) {
-        saveFinancialProfile(userId, {
-          userBalance: Number(formData.userBalance) || 0,
-          dailyExpense: Number(formData.dailyExpense) || 0,
-          monthlyExpense: Number(formData.monthlyExpense) || 0,
-        });
-      }
-
-      setFormData({
-        platform: '',
-        originalAmount: '',
-        currentBalance: '',
-        interestRate: '',
-        interestPeriod: 'bulanan',
-        loanStartDate: new Date().toISOString().slice(0, 10),
-        dueDate: '',
-        isOjkRegistered: false,
-        userBalance: '',
-        dailyExpense: '',
-        monthlyExpense: '',
-      });
+      setForm(EMPTY_FORM);
+      setFormErrors({});
       setIsFormOpen(false);
       setRefreshKey((k) => k + 1);
-      setStatusMsg('Data pinjaman baru & profil kondisi keuangan berhasil dicatat.');
+      setStatusMsg('Pinjaman berhasil dicatat.');
       setTimeout(() => setStatusMsg(''), 4000);
     }
   };
 
+  // ── Modal Hapus ───────────────────────────────────────────────────────────
+
   const handleOpenDeleteModal = (loan) => {
     setSelectedLoanToDelete(loan);
-    const payments = getPaymentsByLoan(loan.id) || [];
-    setLoanPayments(payments);
+    setLoanPayments(getPaymentsByLoan(loan.id) || []);
     setSettlementAmount(loan.currentBalance || loan.originalAmount || '');
     setSettlementDate(new Date().toISOString().slice(0, 10));
     setSettlementProofPreview(null);
@@ -270,21 +372,13 @@ export default function LoansPage() {
   const handleProofFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setDeleteError('');
     setIsCompressingProof(true);
-
     try {
-      const { dataUrl } = await compressImage(file, {
-        maxWidth: 800,
-        maxHeight: 800,
-        quality: 0.7,
-        maxKb: 300,
-      });
+      const { dataUrl } = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.7, maxKb: 300 });
       setSettlementProofPreview(dataUrl);
       setSettlementProofDataUrl(dataUrl);
     } catch (err) {
-      console.error('Gagal mengompresi gambar bukti:', err);
       setDeleteError(err.message || 'Gagal memproses gambar bukti pelunasan.');
     } finally {
       setIsCompressingProof(false);
@@ -301,27 +395,25 @@ export default function LoansPage() {
     if (hasProof) {
       const ok = deleteLoan(selectedLoanToDelete.id);
       if (ok) {
-        setStatusMsg(`Pinjaman ${selectedLoanToDelete.platform} berhasil diselesaikan dan riwayat telah dihapus.`);
+        setStatusMsg(`Pinjaman ${selectedLoanToDelete.platform} berhasil diselesaikan.`);
         handleCloseDeleteModal();
         setRefreshKey((k) => k + 1);
         setTimeout(() => setStatusMsg(''), 4000);
       } else {
-        setDeleteError('Gagal menghapus pinjaman dari penyimpanan.');
+        setDeleteError('Gagal menghapus pinjaman.');
         setIsSubmittingDelete(false);
       }
     } else {
       if (!settlementProofDataUrl) {
-        setDeleteError('Wajib melampirkan foto / bukti transfer pelunasan sebelum menghapus.');
+        setDeleteError('Wajib melampirkan bukti pelunasan sebelum menghapus.');
         setIsSubmittingDelete(false);
         return;
       }
-
       if (!settlementAmount || Number(settlementAmount) <= 0) {
         setDeleteError('Nominal pelunasan harus berupa angka positif.');
         setIsSubmittingDelete(false);
         return;
       }
-
       const payRes = createPayment({
         loanId: selectedLoanToDelete.id,
         userId,
@@ -330,34 +422,50 @@ export default function LoansPage() {
         paymentMethod: 'transfer_bank',
         notes: `Pelunasan akhir pinjaman ${selectedLoanToDelete.platform}`,
       });
-
       if (payRes && payRes.id) {
         attachProofToPayment(payRes.id, settlementProofDataUrl);
       }
-
       const ok = deleteLoan(selectedLoanToDelete.id);
       if (ok) {
-        setStatusMsg(`Bukti pelunasan berhasil disimpan dan pinjaman ${selectedLoanToDelete.platform} telah dihapus.`);
+        setStatusMsg(`Bukti pelunasan tersimpan dan pinjaman ${selectedLoanToDelete.platform} dihapus.`);
         handleCloseDeleteModal();
         setRefreshKey((k) => k + 1);
         setTimeout(() => setStatusMsg(''), 4000);
       } else {
-        setDeleteError('Gagal menghapus pinjaman dari penyimpanan.');
+        setDeleteError('Gagal menghapus pinjaman.');
         setIsSubmittingDelete(false);
       }
     }
   };
 
+  // ── Render Helper ─────────────────────────────────────────────────────────
+
+  const FieldError = ({ name }) =>
+    formErrors[name] ? (
+      <span className="text-[10px] text-rose-600 flex items-center gap-1 mt-0.5">
+        <AlertCircle className="w-3 h-3 shrink-0" />
+        {formErrors[name]}
+      </span>
+    ) : null;
+
+  const inputCls = (name) =>
+    `w-full px-3 py-2.5 rounded-xl border text-xs focus:ring-2 focus:outline-none transition ${
+      formErrors[name]
+        ? 'border-rose-400 bg-rose-50 focus:ring-rose-400/30 focus:border-rose-500'
+        : 'border-slate-200 bg-slate-50 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
+    }`;
+
+  // ── JSX ───────────────────────────────────────────────────────────────────
+
   return (
     <div className="space-y-6 pb-8">
-      {/* ─── HEADER ─────────────────────────────────────────────────────── */}
+
+      {/* ─── HEADER ────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-            Data Pinjaman Saya
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Data Pinjaman Saya</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Pantau sisa tagihan, hitung estimasi bunga, dan rencanakan step pelunasan total hutang.
+            Pantau sisa tagihan, hitung estimasi cicilan, dan rencanakan step pelunasan total utang.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -372,17 +480,17 @@ export default function LoansPage() {
           {activeTab === 'daftar' && (
             <button
               type="button"
-              onClick={handleToggleForm}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition self-start cursor-pointer"
+              onClick={() => { setIsFormOpen((p) => !p); setFormErrors({}); }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>{isFormOpen ? 'Tutup Formulir' : 'Catat Pinjaman Baru'}</span>
+              <span>{isFormOpen ? 'Tutup Formulir' : 'Tambah Pinjaman'}</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* ─── BANNER PERINGATAN DEADLINE MEPET (JIKA ADA) ───────────────── */}
+      {/* ─── BANNER DEADLINE MEPET ──────────────────────────────────────────── */}
       {urgentLoans.length > 0 && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900">
           <div className="flex items-center gap-3">
@@ -390,25 +498,25 @@ export default function LoansPage() {
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-bold text-amber-900 flex items-center gap-2">
+              <p className="text-xs font-bold text-amber-900">
                 Peringatan: {urgentLoans.length} Tagihan Mendekati atau Melewati Jatuh Tempo!
               </p>
               <p className="text-[11px] text-amber-800 mt-0.5">
-                Segera atur pelunasan untuk menghindari bunga harian dan denda berjalan.
+                Segera atur pelunasan untuk menghindari denda berjalan.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setIsUrgentModalDismissed(false)}
-            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition shrink-0 cursor-pointer shadow-xs"
+            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition shrink-0 cursor-pointer"
           >
-            Buka Notifikasi Peringatan
+            Buka Notifikasi
           </button>
         </div>
       )}
 
-      {/* ─── STATUS MSG ──────────────────────────────────────────────────── */}
+      {/* ─── STATUS MSG ────────────────────────────────────────────────────── */}
       {statusMsg && (
         <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -416,63 +524,85 @@ export default function LoansPage() {
         </div>
       )}
 
-      {/* ─── KPI CARDS (DENGAN TOTAL BESERTA BUNGA) ──────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-1">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Total Sisa Pokok
-          </span>
-          <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+      {/* ─── KPI CARDS ─────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Saldo Pengguna */}
+        <div className="bg-white rounded-2xl p-4 border border-emerald-200 bg-emerald-50/20 shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5 text-emerald-600" />
+              Total Saldo Pengguna
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsEditBalanceModalOpen(true)}
+              className="text-[10px] text-emerald-700 hover:text-emerald-800 font-bold hover:underline cursor-pointer"
+            >
+              Edit Saldo
+            </button>
+          </div>
+          <div className="text-xl font-black text-emerald-900 tracking-tight">
+            {formatRupiah(userBalance)}
+          </div>
+          <div className="text-[11px] text-emerald-700/90 font-medium">
+            {userBalance > 0
+              ? 'Saldo tabungan aktif tersimpan'
+              : 'Belum diisi — klik Edit Saldo untuk mengisi'}
+          </div>
+        </div>
+
+        {/* Card 2: Total Pokok Pinjaman + Keterangan Total Pokok + Bunga */}
+        <div className="bg-white rounded-2xl p-4 border border-blue-200 bg-blue-50/20 shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+              Total Pokok Pinjaman
+            </span>
+            <span className="text-[10px] text-blue-700 font-bold bg-blue-100/70 px-2 py-0.5 rounded-full">
+              {stats.totalCount} Aktif
+            </span>
+          </div>
+          <div className="text-xl font-black text-slate-900 tracking-tight">
             {formatRupiah(stats.totalDebt)}
           </div>
-          <span className="text-xs text-slate-400 block">{stats.totalCount} pinjaman aktif</span>
+          <div className="pt-1.5 border-t border-blue-100 text-[11px]">
+            <span className="text-slate-500 font-medium block">Total Pokok Pinjaman + Bunga:</span>
+            <span className="text-xs font-black text-blue-900 block mt-0.5">
+              {formatRupiah(stats.totalObligation)}
+            </span>
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-blue-200 bg-blue-50/20 shadow-xs space-y-1">
-          <div className="flex items-center gap-1.5 text-blue-700">
-            <Percent className="w-4 h-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Beserta Bunga</span>
-          </div>
-          <div className="text-2xl font-extrabold text-blue-900 tracking-tight">
-            {formatRupiah(stats.totalObligation)}
-          </div>
-          <span className="text-xs text-blue-700 block">
-            +{formatRupiah(stats.totalEstimatedInterest)} estimasi bunga
-          </span>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 border border-emerald-200 bg-emerald-50/20 shadow-xs space-y-1">
+        {/* Card 3: Berizin OJK */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-1.5">
           <div className="flex items-center gap-1.5 text-emerald-700">
-            <ShieldCheck className="w-4 h-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Legal (Izin OJK)</span>
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Berizin OJK</span>
           </div>
-          <div className="text-2xl font-extrabold text-emerald-900 tracking-tight">
-            {stats.legalCount} Pinjaman
-          </div>
-          <span className="text-xs text-emerald-700 block">Batas bunga regulasi resmi</span>
+          <div className="text-xl font-black text-emerald-900">{stats.legalCount} Pinjaman</div>
+          <span className="text-[11px] text-slate-500 block">Sesuai batas bunga regulasi</span>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-rose-200 bg-rose-50/20 shadow-xs space-y-1">
+        {/* Card 4: Ilegal & Belum Jelas */}
+        <div className="bg-white rounded-2xl p-4 border border-rose-200 bg-rose-50/20 shadow-xs space-y-1.5">
           <div className="flex items-center gap-1.5 text-rose-700">
-            <ShieldAlert className="w-4 h-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Pinjaman Tanpa Izin</span>
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Ilegal / Belum Jelas</span>
           </div>
-          <div className="text-2xl font-extrabold text-rose-900 tracking-tight">
-            {stats.illegalCount} Pinjaman
-          </div>
-          <span className="text-xs text-rose-700 block">Prioritaskan negosiasi pokok</span>
+          <div className="text-xl font-black text-rose-900">{stats.illegalCount + stats.unknownCount} Pinjaman</div>
+          <span className="text-[11px] text-rose-700 block">
+            {stats.illegalCount} ilegal · {stats.unknownCount} belum jelas
+          </span>
         </div>
       </div>
 
-      {/* ─── TABS ────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full sm:w-fit overflow-x-auto no-scrollbar">
+      {/* ─── TABS ──────────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full sm:w-fit overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('daftar')}
           className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition shrink-0 flex-1 sm:flex-initial ${
-            activeTab === 'daftar'
-              ? 'bg-white text-slate-800 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700'
+            activeTab === 'daftar' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           <CreditCard className="w-3.5 h-3.5" />
@@ -482,13 +612,11 @@ export default function LoansPage() {
           type="button"
           onClick={() => { setActiveTab('simulasi'); setIsFormOpen(false); }}
           className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition shrink-0 flex-1 sm:flex-initial ${
-            activeTab === 'simulasi'
-              ? 'bg-white text-slate-800 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700'
+            activeTab === 'simulasi' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           <TrendingDown className="w-3.5 h-3.5" />
-          Rekomendasi Step Pelunasan
+          Rencana Pelunasan
           {loans.some((l) => l.status === 'aktif') && (
             <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold">
               {loans.filter((l) => l.status === 'aktif').length}
@@ -497,299 +625,423 @@ export default function LoansPage() {
         </button>
       </div>
 
-      {/* ─── TAB: DAFTAR PINJAMAN ────────────────────────────────────────── */}
+      {/* ─── TAB: DAFTAR PINJAMAN ───────────────────────────────────────────── */}
       {activeTab === 'daftar' && (
         <>
-          {/* Form Tambah Pinjaman */}
+          {/* ── FORM TAMBAH PINJAMAN ─────────────────────────────────────── */}
           {isFormOpen && (
-            <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-sm space-y-6">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <CreditCard className="w-4 h-4" />
-                  </div>
+            <div className="bg-white rounded-2xl border border-blue-200 shadow-sm overflow-hidden">
+              {/* Header Form */}
+              <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
+                <div className="flex items-center gap-2.5">
+                  <img src="/assets/navbar.svg" alt="ByeBills" className="h-7 w-auto brightness-0 invert" />
                   <div>
-                    <h2 className="text-sm font-bold text-slate-800">Tambah Data Pinjaman &amp; Kondisi Finansial</h2>
-                    <p className="text-[11px] text-slate-500">
-                      Lengkapi data pinjaman serta saldo dan pengeluaran harian/bulanan Anda untuk kalkulasi rekomendasi pelunasan.
-                    </p>
+                    <h2 className="text-sm font-bold text-white">Tambah Pinjaman</h2>
+                    <p className="text-[11px] text-blue-100">Lengkapi semua data untuk kalkulasi cicilan otomatis</p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  onClick={() => { setIsFormOpen(false); setFormErrors({}); }}
+                  className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateLoan} className="space-y-6">
-                {/* ── Bagian A: Informasi Pinjaman Pokok & Platform ── */}
-                <div className="space-y-3">
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                    1. Data Platform &amp; Tagihan Pinjaman
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Nama Aplikasi / Platform *</label>
-                      <input
-                        type="text"
-                        name="platform"
-                        value={formData.platform}
-                        onChange={handleFormChange}
-                        placeholder="Contoh: AdaKami, KreditPintar, CepetCair"
-                        required
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-                      />
-                    </div>
+              <form onSubmit={handleCreateLoan} className="p-6 space-y-6" noValidate>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Pinjaman Pokok Awal (Rp)</label>
-                      <input
-                        type="number"
-                        name="originalAmount"
-                        value={formData.originalAmount}
-                        onChange={handleFormChange}
-                        placeholder="Contoh: 2000000"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-                      />
-                    </div>
+                {/* ── Grid Input Utama ──────────────────────────────────── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Sisa Tagihan Pokok Saat Ini (Rp) *</label>
-                      <input
-                        type="number"
-                        name="currentBalance"
-                        value={formData.currentBalance}
-                        onChange={handleFormChange}
-                        placeholder="Contoh: 2000000"
-                        required
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-1">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Tanggal Mulai Menghutang *</label>
-                      <input
-                        type="date"
-                        name="loanStartDate"
-                        value={formData.loanStartDate}
-                        onChange={handleFormChange}
-                        required
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Tanggal Jatuh Tempo *</label>
-                      <input
-                        type="date"
-                        name="dueDate"
-                        value={formData.dueDate}
-                        onChange={handleFormChange}
-                        required
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Bunga (%)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="interestRate"
-                        value={formData.interestRate}
-                        onChange={handleFormChange}
-                        placeholder="Contoh: 0.4"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Periode Bunga</label>
-                      <select
-                        name="interestPeriod"
-                        value={formData.interestPeriod}
-                        onChange={handleFormChange}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white"
-                      >
-                        <option value="harian">Harian</option>
-                        <option value="mingguan">Mingguan</option>
-                        <option value="bulanan">Bulanan</option>
-                        <option value="tahunan">Tahunan</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="pt-1">
-                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
-                      <input
-                        type="checkbox"
-                        name="isOjkRegistered"
-                        checked={formData.isOjkRegistered}
-                        onChange={handleFormChange}
-                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>Platform Terdaftar Resmi OJK (Fintech Legal)</span>
+                  {/* Nama Pinjaman */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Nama Pinjaman <span className="text-rose-500">*</span>
                     </label>
+                    <input
+                      type="text"
+                      name="platform"
+                      value={form.platform}
+                      onChange={handleFormChange}
+                      placeholder="cth: AdaKami, KreditPintar, GoPaylater"
+                      className={inputCls('platform')}
+                    />
+                    <FieldError name="platform" />
                   </div>
-                </div>
 
-                {/* ── Bagian B: Saldo & Pengeluaran Rata-rata Harian / Bulanan ── */}
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <Wallet className="w-3.5 h-3.5 text-emerald-600" />
-                    2. Kondisi Finansial Pengguna (Untuk Rekomendasi Step Pelunasan)
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">
-                        Total Saldo / Tabungan Anda Saat Ini (Rp)
-                      </label>
+                  {/* Status Penyedia */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Status Penyedia <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      name="ojkStatus"
+                      value={form.ojkStatus}
+                      onChange={handleFormChange}
+                      className={inputCls('ojkStatus')}
+                    >
+                      <option value="">— Pilih status —</option>
+                      <option value="ojk">Berizin OJK</option>
+                      <option value="ilegal">Ilegal</option>
+                      <option value="tidak_tahu">Tidak Tahu</option>
+                    </select>
+                    <FieldError name="ojkStatus" />
+                  </div>
+
+                  {/* Jumlah Pinjaman Pokok */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Jumlah Pinjaman Pokok (Rp) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="currentBalance"
+                      value={form.currentBalance}
+                      onChange={handleFormChange}
+                      placeholder="cth: 2000000"
+                      min="1"
+                      className={inputCls('currentBalance')}
+                    />
+                    {form.currentBalance && Number(form.currentBalance) > 0 && (
+                      <span className="text-[10px] text-emerald-600 font-semibold">
+                        = {formatRupiah(form.currentBalance)}
+                      </span>
+                    )}
+                    <FieldError name="currentBalance" />
+                  </div>
+
+                  {/* Tenor */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Tenor (bulan) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="tenor"
+                      value={form.tenor}
+                      onChange={handleFormChange}
+                      placeholder="cth: 12"
+                      min="1"
+                      max="360"
+                      className={inputCls('tenor')}
+                    />
+                    <FieldError name="tenor" />
+                  </div>
+
+                  {/* Bunga per Bulan */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Bunga per Bulan (%) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="interestRate"
+                      value={form.interestRate}
+                      onChange={handleFormChange}
+                      placeholder="cth: 2.5"
+                      min="0"
+                      step="0.01"
+                      className={inputCls('interestRate')}
+                    />
+                    <FieldError name="interestRate" />
+                  </div>
+
+                  {/* Jenis Bunga */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Jenis Bunga <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      name="interestType"
+                      value={form.interestType}
+                      onChange={handleFormChange}
+                      className={inputCls('interestType')}
+                    >
+                      <option value="">— Pilih jenis bunga —</option>
+                      <option value="efektif">Efektif (Anuitas)</option>
+                      <option value="flat">Flat</option>
+                    </select>
+                    {form.interestType && (
+                      <span className="text-[10px] text-slate-500">
+                        {form.interestType === 'efektif'
+                          ? 'Cicilan tetap, bunga dihitung dari sisa pokok tiap bulan.'
+                          : 'Bunga dihitung dari pokok awal, dibagi rata tiap bulan.'}
+                      </span>
+                    )}
+                    <FieldError name="interestType" />
+                  </div>
+
+                  {/* Biaya Admin */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Biaya Admin Total (Rp) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="adminFee"
+                      value={form.adminFee}
+                      onChange={handleFormChange}
+                      placeholder="cth: 150000 (isi 0 jika tidak ada)"
+                      min="0"
+                      className={inputCls('adminFee')}
+                    />
+                    <FieldError name="adminFee" />
+                  </div>
+
+                  {/* Denda Telat */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Denda Telat (% dari cicilan) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="latePenalty"
+                      value={form.latePenalty}
+                      onChange={handleFormChange}
+                      placeholder="cth: 5 (isi 0 jika tidak ada)"
+                      min="0"
+                      step="0.1"
+                      className={inputCls('latePenalty')}
+                    />
+                    {form.latePenalty && liveCalc?.valid && (
+                      <span className="text-[10px] text-amber-600 font-semibold">
+                        = {formatRupiah(liveCalc.monthlyPayment * (Number(form.latePenalty) / 100))} / bulan jika telat
+                      </span>
+                    )}
+                    <FieldError name="latePenalty" />
+                  </div>
+
+                  {/* Tanggal Jatuh Tempo */}
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Tanggal Jatuh Tempo Tiap Bulan (1–31) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
-                        name="userBalance"
-                        value={formData.userBalance}
+                        name="dueDateDay"
+                        value={form.dueDateDay}
                         onChange={handleFormChange}
-                        placeholder="Contoh: 5000000"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                        placeholder="cth: 15"
+                        min="1"
+                        max="31"
+                        className={`${inputCls('dueDateDay')} max-w-[120px]`}
                       />
-                      <span className="text-[10px] text-slate-400 block">
-                        Saldo dana tunai / rekening yang bisa dialokasikan
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">
-                        Pengeluaran Rata-rata Harian (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        name="dailyExpense"
-                        value={formData.dailyExpense}
-                        onChange={handleFormChange}
-                        placeholder="Contoh: 50000"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
-                      />
-                      <span className="text-[10px] text-slate-400 block">
-                        Otomatis mengisi bulanan: {formData.dailyExpense ? formatRupiah(Number(formData.dailyExpense) * 30) : '-'}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">
-                        Pengeluaran Rata-rata Bulanan (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        name="monthlyExpense"
-                        value={formData.monthlyExpense}
-                        onChange={handleFormChange}
-                        placeholder="Contoh: 1500000"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
-                      />
-                      <span className="text-[10px] text-slate-400 block">
-                        Kebutuhan hidup pokok per bulan (makan, sewa, transport)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Bagian C: Live Kalkulator Total Beserta Bunga ── */}
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-indigo-50/60 to-sky-50/80 border border-blue-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                      Estimasi Kalkulasi Total Hutang (Sudah Dihitung Beserta Bunga)
-                    </span>
-                    <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full">
-                      Durasi: {liveEstimated.durationDays} hari
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                    <div className="bg-white/80 p-2.5 rounded-xl border border-blue-100">
-                      <span className="text-[10px] text-slate-500 block">Pokok Tagihan</span>
-                      <span className="text-xs font-bold text-slate-800">
-                        {formatRupiah(formData.currentBalance || formData.originalAmount || 0)}
-                      </span>
-                    </div>
-                    <div className="bg-white/80 p-2.5 rounded-xl border border-blue-100">
-                      <span className="text-[10px] text-slate-500 block">Estimasi Bunga</span>
-                      <span className="text-xs font-bold text-rose-600">
-                        +{formatRupiah(liveEstimated.totalInterest)}
-                      </span>
-                    </div>
-                    <div className="bg-white/80 p-2.5 rounded-xl border border-blue-200 col-span-2 sm:col-span-2">
-                      <span className="text-[10px] text-blue-700 font-semibold block">Total Hutang Beserta Bunga</span>
-                      <span className="text-base font-extrabold text-blue-900">
-                        {formatRupiah(liveEstimated.totalObligation)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {formData.userBalance && (
-                    <div className="pt-2 border-t border-blue-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs gap-2">
-                      <span className="text-slate-600">
-                        Saldo Tersedia Anda: <strong>{formatRupiah(formData.userBalance)}</strong>
-                      </span>
-                      {Number(formData.userBalance) >= liveEstimated.totalObligation ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                          ✓ Saldo Anda cukup untuk pelunasan langsung penuh (Sisa saldo: {formatRupiah(Number(formData.userBalance) - liveEstimated.totalObligation)})
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
-                          ⚠️ Saldo belum mencukupi untuk pelunasan sekaligus (Defisit: {formatRupiah(liveEstimated.totalObligation - Number(formData.userBalance))}) — disarankan step cicilan
+                      {form.dueDateDay && !formErrors.dueDateDay && (
+                        <span className="text-[11px] text-slate-500">
+                          → Jatuh tempo tiap tanggal <strong>{form.dueDateDay}</strong> setiap bulan
                         </span>
                       )}
                     </div>
-                  )}
+                    <FieldError name="dueDateDay" />
+                  </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                {/* ── Peringatan field belum diisi (summary) ─────────────── */}
+                {Object.keys(formErrors).length > 0 && (
+                  <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Ada {Object.keys(formErrors).length} field yang belum diisi atau tidak valid:</p>
+                      <ul className="mt-1 space-y-0.5 list-disc list-inside text-rose-700">
+                        {Object.values(formErrors).map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Kalkulasi Live ─────────────────────────────────────── */}
+                {liveCalc && liveCalc.valid && (
+                  <div className="rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-sky-50 border border-blue-200 overflow-hidden">
+                    <div className="px-5 py-3 bg-blue-600 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-white" />
+                      <span className="text-xs font-bold text-white">Kesimpulan Kalkulasi Pinjaman</span>
+                    </div>
+
+                    <div className="p-5 space-y-4">
+                      {/* Baris 1: Cicilan & Total */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="bg-white rounded-xl p-3.5 border border-blue-100 space-y-0.5">
+                          <span className="text-[10px] text-slate-500 font-medium">Cicilan per Bulan</span>
+                          <p className="text-lg font-extrabold text-blue-700">{formatRupiah(liveCalc.monthlyPayment)}</p>
+                          <span className="text-[10px] text-slate-400">selama {form.tenor} bulan</span>
+                        </div>
+                        <div className="bg-white rounded-xl p-3.5 border border-blue-100 space-y-0.5">
+                          <span className="text-[10px] text-slate-500 font-medium">Bunga & Biaya</span>
+                          <p className="text-lg font-extrabold text-rose-600">+{formatRupiah(liveCalc.totalInterestAndFee)}</p>
+                          <span className="text-[10px] text-slate-400">
+                            termasuk admin {formatRupiah(Number(form.adminFee) || 0)}
+                          </span>
+                        </div>
+                        <div className="bg-blue-600 rounded-xl p-3.5 space-y-0.5">
+                          <span className="text-[10px] text-blue-100 font-medium">Total yang Harus Dibayar</span>
+                          <p className="text-lg font-extrabold text-white">{formatRupiah(liveCalc.totalPayment)}</p>
+                          <span className="text-[10px] text-blue-200">pokok + bunga + biaya</span>
+                        </div>
+                      </div>
+
+                      {/* Baris 2: Sisa uang bulanan */}
+                      {userBalance > 0 && (
+                        <div className={`flex items-start gap-3 p-3.5 rounded-xl border ${
+                          afterInstallment !== null && afterInstallment >= 0
+                            ? 'bg-emerald-50 border-emerald-200'
+                            : 'bg-rose-50 border-rose-200'
+                        }`}>
+                          <Wallet className={`w-4 h-4 shrink-0 mt-0.5 ${afterInstallment >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} />
+                          <div>
+                            <p className={`text-xs font-bold ${afterInstallment >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
+                              {afterInstallment !== null
+                                ? `Jika disimpan, sisa uang bulananmu jadi ${formatRupiah(Math.max(afterInstallment, 0))}`
+                                : 'Masukkan saldo untuk melihat dampak ke keuangan bulanan'}
+                            </p>
+                            <p className={`text-[11px] mt-0.5 ${afterInstallment >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {afterInstallment !== null
+                                ? afterInstallment >= 0
+                                  ? `✓ Status: Aman — saldo bulananmu masih positif setelah cicilan & kebutuhan pokok.`
+                                  : `⚠ Status: Perlu Perhatian — cicilan + kebutuhan pokok melebihi saldo bulananmu sebesar ${formatRupiah(Math.abs(afterInstallment))}.`
+                                : ''}
+                            </p>
+                            {monthlyExpense > 0 && (
+                              <p className="text-[10px] text-slate-500 mt-1">
+                                Kalkulasi: Saldo {formatRupiah(userBalance)} − Cicilan {formatRupiah(liveCalc.monthlyPayment)} − Kebutuhan pokok {formatRupiah(monthlyExpense)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Baris 3: Jadwal Tenggat per Step Bulan */}
+                      {form.tenor && form.dueDateDay && Number(form.tenor) > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                            <CalendarDays className="w-3.5 h-3.5 text-blue-600" />
+                            Tenggat Jatuh Tempo per Step Bulan
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                            {Array.from({ length: Math.min(Number(form.tenor), 24) }, (_, i) => {
+                              const stepNum = i + 1;
+                              const now = new Date();
+                              const stepDate = new Date(now);
+                              stepDate.setMonth(now.getMonth() + stepNum);
+                              stepDate.setDate(Math.min(Number(form.dueDateDay), 28));
+                              return (
+                                <div
+                                  key={stepNum}
+                                  className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] ${
+                                    stepNum === Number(form.tenor)
+                                      ? 'bg-blue-600 border-blue-600 text-white'
+                                      : 'bg-white border-slate-200 text-slate-700'
+                                  }`}
+                                >
+                                  <span className={`font-bold shrink-0 ${stepNum === Number(form.tenor) ? 'text-blue-100' : 'text-slate-400'}`}>
+                                    Bln {stepNum}
+                                  </span>
+                                  <span className="font-semibold truncate">
+                                    {formatTanggal(stepDate)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {Number(form.tenor) > 24 && (
+                              <div className="col-span-2 sm:col-span-3 text-center text-[10px] text-slate-400 py-1">
+                                ... dan {Number(form.tenor) - 24} bulan berikutnya
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Info jika saldo belum diset */}
+                {!userBalance && liveCalc?.valid && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                    <Info className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>
+                      Belum ada saldo tersimpan.{' '}
+                      <button
+                        type="button"
+                        onClick={() => setIsEditBalanceModalOpen(true)}
+                        className="text-emerald-600 font-semibold hover:underline"
+                      >
+                        Klik di sini
+                      </button>{' '}
+                      untuk mengisi saldo agar dampak ke keuangan bulanan bisa dihitung.
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Tombol Aksi ───────────────────────────────────────── */}
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => setIsFormOpen(false)}
+                    onClick={() => { setIsFormOpen(false); setForm(EMPTY_FORM); setFormErrors({}); }}
                     className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer flex items-center gap-1.5"
                   >
-                    Simpan Pinjaman &amp; Analisis Finansial
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Simpan Pinjaman
                   </button>
                 </div>
               </form>
             </div>
           )}
 
-          {/* Grid Pinjaman */}
+          {/* ── Grid Pinjaman ──────────────────────────────────────────── */}
           {loans.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-400 space-y-2">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-2">
               <CreditCard className="w-12 h-12 text-slate-300 mx-auto" />
               <p className="text-sm font-semibold text-slate-700">Belum Ada Data Pinjaman</p>
-              <p className="text-xs max-w-sm mx-auto">
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
                 Catat pinjaman Anda untuk mendapatkan rekapitulasi beban utang dan bantuan restrukturisasi.
               </p>
+              <button
+                type="button"
+                onClick={() => setIsFormOpen(true)}
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Tambah Pinjaman Pertama
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {loans.map((loan) => {
-                const interestInfo = calculateLoanEstimatedInterest(loan);
                 const urgentInfo = checkUrgentDue(loan.dueDate);
+
+                // Hitung ulang cicilan dari data tersimpan
+                const principal = loan.originalAmount || loan.currentBalance || 0;
+                const ratePerMonth = (Number(loan.interestRate) || 0) / 100;
+                const tenor = loan.tenor || 0;
+                const adminFee = loan.adminFee || 0;
+                const interestType = loan.interestType || 'efektif';
+                const calc = tenor > 0
+                  ? calcLoan({ principal, ratePerMonth, tenor, interestType, adminFee })
+                  : null;
+
+                // Status OJK badge
+                const ojkStatus = loan.ojkStatus || (loan.isOjkRegistered ? 'ojk' : 'ilegal');
+                const ojkBadgeStyle = {
+                  ojk: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                  ilegal: 'bg-rose-50 text-rose-700 border-rose-200',
+                  tidak_tahu: 'bg-slate-50 text-slate-600 border-slate-200',
+                }[ojkStatus] || 'bg-slate-50 text-slate-600 border-slate-200';
 
                 return (
                   <div
                     key={loan.id}
                     className={`bg-white rounded-2xl border p-5 shadow-xs transition space-y-3 relative ${
                       urgentInfo.isUrgent
-                        ? 'border-amber-300 ring-1 ring-amber-200 hover:border-amber-400'
+                        ? 'border-amber-300 ring-1 ring-amber-200'
                         : 'border-slate-200/80 hover:border-blue-300'
                     }`}
                   >
@@ -804,17 +1056,12 @@ export default function LoansPage() {
                       </div>
                     )}
 
-                    <div className="flex items-start justify-between">
+                    {/* Nama & Badge */}
+                    <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="text-base font-bold text-slate-800">{loan.platform}</h3>
-                        <span
-                          className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded mt-1 border ${
-                            loan.isOjkRegistered
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-rose-50 text-rose-700 border-rose-200'
-                          }`}
-                        >
-                          {loan.isOjkRegistered ? 'Terdaftar Resmi' : 'Tidak Terdaftar'}
+                        <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded mt-1 border ${ojkBadgeStyle}`}>
+                          {OJK_LABEL[ojkStatus] || ojkStatus}
                         </span>
                       </div>
                       <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold uppercase">
@@ -822,49 +1069,60 @@ export default function LoansPage() {
                       </span>
                     </div>
 
+                    {/* Angka-angka */}
                     <div className="space-y-1.5 pt-1 border-t border-slate-100">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[11px] text-slate-400 font-medium">Sisa Pokok:</span>
-                        <span className="text-sm font-bold text-slate-800">
-                          {formatRupiah(loan.currentBalance)}
-                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">Pokok:</span>
+                        <span className="text-sm font-bold text-slate-800">{formatRupiah(loan.currentBalance)}</span>
                       </div>
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-[11px] text-slate-400 font-medium">Estimasi Bunga:</span>
-                        <span className="text-xs font-semibold text-rose-600">
-                          +{formatRupiah(interestInfo.totalInterest)}
-                        </span>
-                      </div>
-                      <div className="flex items-baseline justify-between pt-1 border-t border-slate-100">
-                        <span className="text-[11px] font-bold text-blue-900">Total + Bunga:</span>
-                        <span className="text-base font-extrabold text-blue-900">
-                          {formatRupiah(interestInfo.totalObligation)}
-                        </span>
-                      </div>
+                      {calc?.valid && (
+                        <>
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-[11px] text-slate-400 font-medium">Cicilan/bulan:</span>
+                            <span className="text-xs font-semibold text-blue-700">{formatRupiah(calc.monthlyPayment)}</span>
+                          </div>
+                          <div className="flex items-baseline justify-between pt-1 border-t border-slate-100">
+                            <span className="text-[11px] font-bold text-slate-700">Total Bayar:</span>
+                            <span className="text-sm font-extrabold text-blue-900">{formatRupiah(calc.totalPayment)}</span>
+                          </div>
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-[11px] text-slate-400">Bunga & Biaya:</span>
+                            <span className="text-xs font-semibold text-rose-600">+{formatRupiah(calc.totalInterestAndFee)}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
 
+                    {/* Detail */}
                     <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1">
                           <Percent className="w-3 h-3 text-slate-400" />
-                          {loan.interestRate}% ({loan.interestPeriod})
+                          {loan.interestRate}%/bln · {loan.interestType === 'flat' ? 'Flat' : 'Efektif'}
                         </span>
                         <span className="flex items-center gap-1">
                           <CalendarDays className="w-3 h-3 text-slate-400" />
-                          Mulai: {loan.loanStartDate || '-'}
+                          Tenor: {loan.tenor ? `${loan.tenor} bln` : '-'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3 text-slate-400" />
-                          Tempo: {loan.dueDate}
+                          Tempo tgl {loan.dueDateDay || '-'} tiap bulan
                         </span>
                         <span className="text-[10px] text-slate-400">
-                          ({interestInfo.durationDays} hari)
+                          Lunas: {formatTanggal(loan.dueDate)}
                         </span>
                       </div>
+                      {loan.latePenalty > 0 && (
+                        <div className="text-amber-600 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Denda telat: {loan.latePenalty}% dari cicilan
+                        </div>
+                      )}
                     </div>
 
+                    {/* Tombol Hapus */}
                     <div className="pt-2 border-t border-slate-100">
                       <button
                         type="button"
@@ -872,7 +1130,7 @@ export default function LoansPage() {
                         className="w-full py-1.5 px-3 rounded-xl border border-slate-200 hover:border-rose-300 hover:bg-rose-50 text-slate-600 hover:text-rose-600 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Selesaikan &amp; Hapus</span>
+                        Selesaikan & Hapus
                       </button>
                     </div>
                   </div>
@@ -881,7 +1139,7 @@ export default function LoansPage() {
             </div>
           )}
 
-          {/* CTA ke simulasi jika ada pinjaman aktif */}
+          {/* CTA ke Simulasi */}
           {loans.some((l) => l.status === 'aktif') && (
             <div
               className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:border-blue-400 transition"
@@ -895,34 +1153,33 @@ export default function LoansPage() {
                   <TrendingDown className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800">Rencanakan Pelunasan Optimal</p>
+                  <p className="text-sm font-bold text-slate-800">Buat Rencana Pelunasan</p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Masukkan kemampuan bayar bulanan → dapatkan jadwal dan strategi bebas utang terbaik.
+                    Pilih prioritas Snowball/Avalanche dan atur target bulan pelunasan Anda.
                   </p>
                 </div>
               </div>
               <span className="text-xs font-semibold text-blue-600 whitespace-nowrap shrink-0 self-end sm:self-auto">
-                Mulai Simulasi →
+                Buka Rencana Pelunasan →
               </span>
             </div>
           )}
         </>
       )}
 
-      {/* ─── TAB: SIMULASI PELUNASAN ─────────────────────────────────────── */}
+      {/* ─── TAB: RENCANA PELUNASAN ─────────────────────────────────────────── */}
       {activeTab === 'simulasi' && (
         <RepaymentPlanner loans={loans} userId={userId} />
       )}
 
-      {/* ─── MODAL KONFIRMASI PELUNASAN & HAPUS PINJAMAN ──────────────────── */}
+      {/* ─── MODAL KONFIRMASI HAPUS PINJAMAN ────────────────────────────────── */}
       {selectedLoanToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2 text-slate-800">
                 <Trash2 className="w-5 h-5 text-rose-500" />
-                <h2 className="text-base font-bold">Selesaikan &amp; Hapus Pinjaman</h2>
+                <h2 className="text-base font-bold">Selesaikan & Hapus Pinjaman</h2>
               </div>
               <button
                 type="button"
@@ -933,17 +1190,16 @@ export default function LoansPage() {
               </button>
             </div>
 
-            {/* Info Ringkas Pinjaman */}
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-2">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-sm font-bold text-slate-800">{selectedLoanToDelete.platform}</h3>
-                  <span className="text-[11px] text-slate-500 block">
+                  <span className="text-[11px] text-slate-500">
                     Pokok: {formatRupiah(selectedLoanToDelete.originalAmount)}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-slate-400 block font-medium">Sisa Tagihan</span>
+                  <span className="text-[10px] text-slate-400 block">Sisa Tagihan</span>
                   <span className="text-base font-extrabold text-slate-900">
                     {formatRupiah(selectedLoanToDelete.currentBalance)}
                   </span>
@@ -951,20 +1207,19 @@ export default function LoansPage() {
               </div>
             </div>
 
-            {/* Cek Status Bukti Pelunasan */}
             {loanPayments.some((p) => Boolean(p.proofFileName)) ? (
               <div className="space-y-3">
                 <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold">Bukti Pembayaran / Pelunasan Terdeteksi!</p>
+                    <p className="font-bold">Bukti Pembayaran Terdeteksi!</p>
                     <p className="text-[11px] text-emerald-700 mt-0.5">
-                      Pinjaman ini sudah memiliki bukti transfer / pembayaran yang tersimpan di sistem.
+                      Pinjaman ini sudah memiliki bukti transfer yang tersimpan.
                     </p>
                   </div>
                 </div>
                 <p className="text-xs text-slate-600">
-                  Apakah Anda yakin ingin menyelesaikan dan menghapus riwayat pinjaman di <strong>{selectedLoanToDelete.platform}</strong> dari daftar aktif?
+                  Yakin ingin menghapus pinjaman <strong>{selectedLoanToDelete.platform}</strong>?
                 </p>
               </div>
             ) : (
@@ -974,7 +1229,7 @@ export default function LoansPage() {
                   <div>
                     <p className="font-bold">Bukti Pelunasan Belum Ditemukan</p>
                     <p className="text-[11px] text-amber-700 mt-0.5">
-                      Untuk memverifikasi bahwa hutang telah selesai, silakan lampirkan bukti pembayaran/transfer pelunasan terlebih dahulu sebelum menghapus pinjaman.
+                      Lampirkan bukti pembayaran/transfer sebelum menghapus pinjaman.
                     </p>
                   </div>
                 </div>
@@ -987,23 +1242,21 @@ export default function LoansPage() {
                       value={settlementAmount}
                       onChange={(e) => setSettlementAmount(e.target.value)}
                       placeholder="Nominal pelunasan"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
-
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-700">Tanggal Pelunasan</label>
                     <input
                       type="date"
                       value={settlementDate}
                       onChange={(e) => setSettlementDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
-
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-700">Unggah Bukti Transfer / Pelunasan</label>
-                    <div className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-4 text-center cursor-pointer transition">
+                    <div className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-4 text-center transition">
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/jpg"
@@ -1022,16 +1275,11 @@ export default function LoansPage() {
                         </span>
                       </label>
                     </div>
-
                     {settlementProofPreview && (
                       <div className="mt-2 p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
-                        <img
-                          src={settlementProofPreview}
-                          alt="Preview Bukti"
-                          className="w-12 h-12 object-cover rounded-lg border border-slate-200 shrink-0"
-                        />
+                        <img src={settlementProofPreview} alt="Preview Bukti" className="w-12 h-12 object-cover rounded-lg border border-slate-200 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <span className="text-xs font-semibold text-emerald-700 truncate flex items-center gap-1">
+                          <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
                             <FileCheck className="w-3.5 h-3.5" /> Bukti siap dilampirkan
                           </span>
                           <span className="text-[10px] text-slate-400">Tersimpan dalam format terkompresi</span>
@@ -1043,7 +1291,6 @@ export default function LoansPage() {
               </div>
             )}
 
-            {/* Error Alert */}
             {deleteError && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -1051,7 +1298,6 @@ export default function LoansPage() {
               </div>
             )}
 
-            {/* Tombol Aksi */}
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
@@ -1073,7 +1319,7 @@ export default function LoansPage() {
                     ? 'Memproses...'
                     : loanPayments.some((p) => Boolean(p.proofFileName))
                     ? 'Hapus Pinjaman'
-                    : 'Simpan Bukti & Hapus Pinjaman'}
+                    : 'Simpan Bukti & Hapus'}
                 </span>
               </button>
             </div>
@@ -1081,11 +1327,10 @@ export default function LoansPage() {
         </div>
       )}
 
-      {/* ─── MODAL POP-UP PERINGATAN DEADLINE MEPET ───────────────────── */}
+      {/* ─── MODAL PERINGATAN DEADLINE MEPET ────────────────────────────────── */}
       {urgentLoans.length > 0 && !isUrgentModalDismissed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border-2 border-amber-400 space-y-4 max-h-[90vh] overflow-y-auto">
-            {/* Header Modal */}
             <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
@@ -1096,7 +1341,7 @@ export default function LoansPage() {
                     Perhatian Segera
                   </span>
                   <h3 className="text-base font-bold text-slate-800 mt-1">
-                    Deadline Tagihan Pinjaman Sudah Mepet!
+                    Deadline Tagihan Sudah Mepet!
                   </h3>
                 </div>
               </div>
@@ -1109,33 +1354,29 @@ export default function LoansPage() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Sistem ByeBills membaca ada <strong>{urgentLoans.length} pinjaman</strong> yang mendekati atau telah melewati batas jatuh tempo. Segera lakukan pelunasan untuk menghentikan akumulasi bunga harian dan denda penagihan.
+            <p className="text-xs text-slate-600">
+              Ada <strong>{urgentLoans.length} pinjaman</strong> yang mendekati atau melewati jatuh tempo. Segera lakukan pelunasan.
             </p>
 
-            {/* List Pinjaman Mepet */}
             <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
               {urgentLoans.map((uLoan) => (
-                <div
-                  key={uLoan.id}
-                  className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center justify-between gap-3"
-                >
+                <div key={uLoan.id} className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-800 truncate">{uLoan.platform}</span>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
-                          uLoan.isOjkRegistered
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-rose-100 text-rose-800'
-                        }`}
-                      >
-                        {uLoan.isOjkRegistered ? 'OJK' : 'Ilegal'}
+                      <span className={`text-[9px] px-1.5 rounded font-semibold ${
+                        uLoan.ojkStatus === 'ojk'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : uLoan.ojkStatus === 'ilegal'
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {OJK_LABEL[uLoan.ojkStatus || (uLoan.isOjkRegistered ? 'ojk' : 'ilegal')]}
                       </span>
                     </div>
                     <p className="text-[11px] text-amber-800 font-medium mt-0.5 flex items-center gap-1">
                       <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-                      Tempo: {uLoan.dueDate} (
+                      Tempo: {formatTanggal(uLoan.dueDate)} (
                       <strong className={uLoan.isOverdue ? 'text-rose-600' : 'text-amber-700'}>
                         {uLoan.isOverdue
                           ? `Terlewat ${Math.abs(uLoan.diffDays)} hari!`
@@ -1145,58 +1386,41 @@ export default function LoansPage() {
                       </strong>
                       )
                     </p>
-                    <p className="text-[10px] text-slate-500">
-                      Pokok: {formatRupiah(uLoan.currentBalance)} · Bunga: +{formatRupiah(uLoan.totalInterest)}
-                    </p>
+                    <p className="text-[10px] text-slate-500">Pokok: {formatRupiah(uLoan.currentBalance)}</p>
                   </div>
-
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] text-slate-400 block">Total Pelunasan</span>
-                    <span className="text-xs font-extrabold text-rose-700 block">
-                      {formatRupiah(uLoan.totalObligation)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUrgentModalDismissed(true);
-                        handleOpenDeleteModal(uLoan);
-                      }}
-                      className="mt-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-xs transition cursor-pointer"
-                    >
-                      Lunasi Sekarang
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setIsUrgentModalDismissed(true); handleOpenDeleteModal(uLoan); }}
+                    className="mt-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-xs transition cursor-pointer shrink-0"
+                  >
+                    Lunasi
+                  </button>
                 </div>
               ))}
             </div>
 
-            {/* Tombol Aksi Bawah */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => {
-                  setIsUrgentModalDismissed(true);
-                  setActiveTab('simulasi');
-                }}
+                onClick={() => { setIsUrgentModalDismissed(true); setActiveTab('simulasi'); }}
                 className="w-full sm:w-auto px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <TrendingDown className="w-4 h-4" />
-                <span>Lihat Step Rekomendasi Pelunasan</span>
+                Lihat Rencana Pelunasan
               </button>
-
               <button
                 type="button"
                 onClick={() => setIsUrgentModalDismissed(true)}
                 className="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition cursor-pointer"
               >
-                Tutup &amp; Ingatkan Nanti
+                Tutup & Ingatkan Nanti
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Edit Jumlah Saldo */}
+      {/* Modal Edit Saldo */}
       <EditBalanceModal
         isOpen={isEditBalanceModalOpen}
         onClose={() => setIsEditBalanceModalOpen(false)}

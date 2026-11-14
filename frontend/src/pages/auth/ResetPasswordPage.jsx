@@ -126,9 +126,12 @@ export default function ResetPasswordPage() {
       <div className="min-h-[85vh] flex flex-col justify-center items-center px-4 py-8">
         <div className="w-full max-w-md space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-5 text-center">
+            <div className="flex justify-center mb-1">
+              <img src="/assets/navbar.svg" alt="ByeBills" className="h-9 w-auto" />
+            </div>
             <div className="flex justify-center">
-              <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
-                <ShieldCheck className="w-7 h-7 text-emerald-600" />
+              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -170,9 +173,7 @@ export default function ResetPasswordPage() {
           {/* Header */}
           <div className="text-center space-y-2">
             <div className="flex justify-center mb-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                <ShieldCheck className="w-6 h-6 text-emerald-600" />
-              </div>
+              <img src="/assets/navbar.svg" alt="ByeBills" className="h-9 w-auto" />
             </div>
             <h1 className="text-lg font-bold text-slate-800">Buat Password Baru</h1>
             {emailFromUrl && (

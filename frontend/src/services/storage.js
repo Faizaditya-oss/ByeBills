@@ -341,6 +341,25 @@ export function updateUser(id, changes) {
   return safeUser;
 }
 
+/**
+ * Update password pengguna berdasarkan email.
+ * Digunakan oleh alur reset password.
+ *
+ * @param {string} email
+ * @param {string} newPassword - Password baru dalam bentuk plaintext
+ * @returns {boolean} true jika berhasil, false jika user tidak ditemukan atau gagal tulis
+ */
+export function updateUserPassword(email, newPassword) {
+  const store = readStore(STORAGE_KEYS.USERS);
+  const idx = store.findIndex((u) => u.email.toLowerCase() === email.toLowerCase());
+  if (idx === -1) return false;
+
+  store[idx].passwordHash = hashPassword(newPassword);
+  store[idx].updatedAt = new Date().toISOString();
+
+  return writeStore(STORAGE_KEYS.USERS, store);
+}
+
 // ─── CASES ───────────────────────────────────────────────────────────────────
 
 export function getCasesByUser(userId) {

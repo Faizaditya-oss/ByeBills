@@ -7,6 +7,8 @@ import LandingPage from './pages/LandingPage.jsx';
 // Auth
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import MainLayout from './layouts/MainLayout.jsx';
 
@@ -38,6 +40,8 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Rute Terlindungi User */}
         <Route element={<ProtectedRoute allowedRoles={['user']} />}>

@@ -27,8 +27,11 @@
  * Password dicocokkan dengan checkPassword() — BUKAN plaintext.
  */
 
-import { getUserByEmail, getById, createUser, STORAGE_KEYS } from './storage.js';
-import { checkPassword } from '../data/initialData.js';
+import { getUserByEmail, getById, createUser, updateUserPassword, STORAGE_KEYS } from './storage.js';
+import { checkPassword, hashPassword } from '../data/initialData.js';
+
+const RESET_TOKENS_KEY = 'BUBU_reset_tokens';
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 60 menit
 
 const SESSION_KEY = 'BUBU_session';
 
@@ -200,4 +203,121 @@ export function getCurrentUser() {
 export function hasRole(...roles) {
   const role = getCurrentRole();
   return Boolean(role && ACTIVE_ROLES.includes(role) && roles.includes(role));
+}
+
+// ─── FORGOT / RESET PASSWORD ─────────────────────────────────────────────────
+
+/**
+ * Generate token reset password sederhana.
+ * Token disimpan di localStorage dengan TTL 60 menit.
+ *
+ * ⚠️  Demo only: di produksi token ini dikirim via email oleh backend.
+ *
+ * @param {string} email
+ * @returns {{ token: string } | { error: string }}
+ */
+export function generateResetToken(email) {
+  const user = getUserByEmail(email);
+  if (!user || !user.isActive) {
+    // Respons samar — jangan bocorkan apakah email terdaftar
+    return { token: null };
+  }
+
+  // Buat token acak (hex 32 karakter)
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  const token = Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
+
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
+
+  // Ambil token-token yang sudah ada, buang yang kadaluwarsa
+  let tokens = [];
+  try {
+    const raw = localStorage.getItem(RESET_TOKENS_KEY);
+    tokens = raw ? JSON.parse(raw) : [];
+  } catch {
+    tokens = [];
+  }
+
+  // Hapus token lama untuk email yang sama
+  tokens = tokens.filter(
+    (t) => t.email !== email.toLowerCase() && new Date(t.expiresAt) > new Date()
+  );
+
+  tokens.push({ token, email: email.toLowerCase(), expiresAt, used: false });
+
+  try {
+    localStorage.setItem(RESET_TOKENS_KEY, JSON.stringify(tokens));
+  } catch (e) {
+    console.error('[BUBU Auth] Gagal menyimpan reset token:', e);
+    return { error: 'Gagal menyimpan token.' };
+  }
+
+  return { token };
+}
+
+/**
+ * Validasi token reset password.
+ *
+ * @param {string} token
+ * @param {string} email
+ * @returns {{ valid: boolean, reason?: string }}
+ */
+export function validateResetToken(token, email) {
+  if (!token || !email) return { valid: false, reason: 'Token atau email tidak ditemukan.' };
+
+  let tokens = [];
+  try {
+    const raw = localStorage.getItem(RESET_TOKENS_KEY);
+    tokens = raw ? JSON.parse(raw) : [];
+  } catch {
+    return { valid: false, reason: 'Gagal membaca data token.' };
+  }
+
+  const record = tokens.find(
+    (t) => t.token === token && t.email === email.toLowerCase()
+  );
+
+  if (!record) return { valid: false, reason: 'Token tidak ditemukan atau tidak valid.' };
+  if (record.used) return { valid: false, reason: 'Token ini sudah digunakan.' };
+  if (new Date(record.expiresAt) <= new Date()) {
+    return { valid: false, reason: 'Token telah kadaluwarsa. Silakan minta tautan baru.' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Reset password pengguna menggunakan token yang valid.
+ *
+ * @param {string} token
+ * @param {string} email
+ * @param {string} newPassword
+ * @returns {{ success: boolean } | { error: string }}
+ */
+export function resetPassword(token, email, newPassword) {
+  const validation = validateResetToken(token, email);
+  if (!validation.valid) return { error: validation.reason };
+
+  if (!newPassword || newPassword.length < 6) {
+    return { error: 'Password minimal 6 karakter.' };
+  }
+
+  const result = updateUserPassword(email, newPassword);
+  if (!result) return { error: 'Gagal memperbarui password. Coba lagi.' };
+
+  // Tandai token sebagai sudah digunakan
+  try {
+    const raw = localStorage.getItem(RESET_TOKENS_KEY);
+    const tokens = raw ? JSON.parse(raw) : [];
+    const idx = tokens.findIndex((t) => t.token === token);
+    if (idx !== -1) {
+      tokens[idx].used = true;
+      localStorage.setItem(RESET_TOKENS_KEY, JSON.stringify(tokens));
+    }
+  } catch (e) {
+    console.error('[BUBU Auth] Gagal menandai token sebagai used:', e);
+  }
+
+  return { success: true };
 }

@@ -143,9 +143,17 @@ export default function LoginPage() {
 
             {/* Input Password */}
             <div className="space-y-1.5">
-              <label htmlFor="login-password" className="block text-xs font-semibold text-slate-700">
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="login-password" className="block text-xs font-semibold text-slate-700">
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
+                >
+                  Lupa Password?
+                </Link>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <Lock className="w-4 h-4" />

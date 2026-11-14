@@ -1,12 +1,12 @@
 /**
  * financialFaq.js
- * Daftar pertanyaan dan jawaban interaktif seputar pinjaman online,
- * kesehatan finansial, dan tips praktis untuk Gen Z di aplikasi BUBU.
+ * Daftar pertanyaan dan jawaban interaktif seputar pinjaman,
+ * kesehatan finansial, dan tips praktis di aplikasi ByeBills.
  */
 
 export const FINANCIAL_FAQ_CATEGORIES = [
   { id: 'all', label: 'Semua Topik' },
-  { id: 'pinjol', label: 'Pinjol & Legalitas' },
+  { id: 'pinjol', label: 'Legalitas & Regulasi' },
   { id: 'pelunasan', label: 'Strategi Pelunasan' },
   { id: 'dc', label: 'Penagihan & DC' },
   { id: 'bubu', label: 'Fitur ByeBills & Poin' },
@@ -16,9 +16,9 @@ export const FINANCIAL_FAQS = [
   {
     id: 'faq-01',
     category: 'pinjol',
-    question: 'Gimana cara membedakan pinjol legal vs pinjol ilegal?',
+    question: 'Gimana cara membedakan pinjaman legal vs pinjaman ilegal?',
     answer:
-      'Pinjol legal wajib berizin resmi OJK, membatasi bunga maks. 0.3%/hari, dan HANYA boleh mengakses izin CAMILAN (Camera, Microphone, Location). Jika aplikasi meminta akses seluruh kontak telepon atau galeri foto, dapat dipastikan itu pinjol ilegal!',
+      'Pinjaman legal wajib berizin resmi OJK, membatasi bunga maks. 0.3%/hari, dan HANYA boleh mengakses izin CAMILAN (Camera, Microphone, Location). Jika aplikasi meminta akses seluruh kontak telepon atau galeri foto, dapat dipastikan itu pinjaman tanpa izin resmi!',
   },
   {
     id: 'faq-02',
@@ -58,9 +58,9 @@ export const FINANCIAL_FAQS = [
   {
     id: 'faq-07',
     category: 'pinjol',
-    question: 'Apakah gagal bayar pinjol ilegal masuk ke skor SLIK OJK?',
+    question: 'Apakah gagal bayar pinjaman ilegal masuk ke skor SLIK OJK?',
     answer:
-      'Tidak. Pinjol ilegal tidak terdaftar di OJK sehingga tidak memiliki akses untuk melaporkan ke SLIK OJK (BI Checking). Namun, pinjol legal yang terdaftar di OJK akan melaporkan riwayat keterlambatan pembayaran ke SLIK.',
+      'Tidak. Pinjaman ilegal tidak terdaftar di OJK sehingga tidak memiliki akses untuk melaporkan ke SLIK OJK (BI Checking). Namun, pinjaman legal yang terdaftar di OJK akan melaporkan riwayat keterlambatan pembayaran ke SLIK.',
   },
   {
     id: 'faq-08',

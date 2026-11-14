@@ -82,7 +82,7 @@ export default function LandingPage() {
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100/80 border border-emerald-200 text-emerald-800 text-xs font-bold tracking-wide">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                Solusi Pendampingan Pinjaman Online #1 untuk Gen Z
+                Solusi Pendampingan &amp; Pelunasan Pinjaman Terpercaya
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
@@ -94,7 +94,7 @@ export default function LandingPage() {
               </h1>
 
               <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                ByeBills adalah platform terpercaya yang mendampingi Anda menghadapi teror pinjol,
+                ByeBills adalah platform terpercaya yang mendampingi Anda menghadapi kendala tagihan pinjaman,
                 menyusun simulasi pelunasan ilmiah (Snowball &amp; Avalanche), serta memulihkan
                 kesehatan mental finansial Anda. <strong>100% aman, rahasia, dan gratis.</strong>
               </p>
@@ -105,7 +105,7 @@ export default function LandingPage() {
                   to="/register"
                   className="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-base shadow-lg shadow-emerald-600/30 hover:shadow-emerald-600/40 transition-all flex items-center justify-center gap-2.5 transform hover:-translate-y-0.5"
                 >
-                  Mulai Bebas Pinjol Sekarang
+                  Mulai Bebas Pinjaman Sekarang
                   <ArrowRight className="w-5 h-5" />
                 </Link>
                 <Link
@@ -214,7 +214,7 @@ export default function LandingPage() {
               Apakah Anda Merasakan Tekanan Ini?
             </h2>
             <p className="text-sm sm:text-base text-slate-500">
-              Jeratan pinjaman online bukan hanya masalah angka, melainkan beban pikiran yang
+              Jeratan beban pinjaman bukan hanya masalah angka, melainkan beban pikiran yang
               menguras waktu, energi, dan masa depan.
             </p>
           </div>
@@ -267,7 +267,7 @@ export default function LandingPage() {
               Semua Fitur yang Anda Butuhkan untuk Merdeka dari Utang
             </h2>
             <p className="text-sm sm:text-base text-slate-500">
-              Didesain khusus untuk Gen Z: tampilan modern, bebas ribet, dan memberikan dampak nyata.
+              Didesain khusus untuk kemudahan Anda: tampilan modern, bebas ribet, dan memberikan dampak nyata.
             </p>
           </div>
 
@@ -315,7 +315,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-base font-bold text-slate-800">Edukasi &amp; Poin Reward</h3>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Pelajari modul literasi anti-pinjol, ikuti kuis finansial, kumpulkan poin reward, dan
+                Pelajari modul literasi keuangan, ikuti kuis finansial, kumpulkan poin reward, dan
                 buka lencana prestasi pelunasan.
               </p>
             </div>
@@ -371,7 +371,7 @@ export default function LandingPage() {
               <h3 className="text-lg font-bold text-slate-800">Klaim Poin &amp; Hidup Bebas</h3>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                 Upload bukti pembayaran, dapatkan poin reward edukasi, dan nikmati ketenangan hidup
-                tanpa teror tagihan pinjol.
+                tanpa beban tagihan pinjaman.
               </p>
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
               <p className="text-xs sm:text-sm text-slate-600 italic leading-relaxed">
-                "Sebelum tahu ByeBills, saya punya utang di 4 aplikasi pinjol dan tiap hari diteror
+                "Sebelum tahu ByeBills, saya punya utang di 4 aplikasi pinjaman dan tiap hari cemas
                 WhatsApp. Begitu pakai strategi Snowball dan tahu hak hukum konsumen OJK, saya bisa
                 lunas satu per satu tanpa panik."
               </p>
@@ -406,7 +406,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <div className="text-sm font-bold text-slate-800">Andi Pratama, 24</div>
-                  <div className="text-[11px] text-slate-400">Karyawan Swasta — Lunas 3 Pinjol</div>
+                  <div className="text-[11px] text-slate-400">Karyawan Swasta — Lunas 3 Pinjaman</div>
                 </div>
               </div>
             </div>
@@ -455,7 +455,7 @@ export default function LandingPage() {
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-            Masa Depanmu Terlalu Berharga untuk Dihabisi Bunga Pinjol.
+            Masa Depanmu Terlalu Berharga untuk Dihabisi Beban Bunga Pinjaman.
           </h2>
 
           <p className="text-sm sm:text-base text-emerald-100 max-w-2xl mx-auto leading-relaxed">
@@ -491,15 +491,13 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-slate-800">
             <div className="space-y-3 md:col-span-2">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-black">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
+                <img src="/navbar-mobile.svg" alt="ByeBills" className="h-8 w-auto" />
                 <span className="text-lg font-black text-white">ByeBills</span>
               </div>
               <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-                Platform pendampingan, advokasi, dan edukasi penanganan pinjaman online untuk
-                generasi muda Indonesia. Menumbuhkan kesehatan finansial yang berkelanjutan dan
-                bebas dari jerat utang predator.
+                Platform pendampingan, advokasi, dan edukasi penanganan pinjaman untuk
+                masyarakat Indonesia. Menumbuhkan kesehatan finansial yang berkelanjutan dan
+                bebas dari jerat utang beban tinggi.
               </p>
             </div>
 
@@ -535,7 +533,7 @@ export default function LandingPage() {
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
             <p>&copy; {new Date().getFullYear()} ByeBills. Hak Cipta Dilindungi.</p>
-            <p>Dibuat untuk Masa Depan Finansial Gen Z yang Lebih Cerah.</p>
+            <p>Dibuat untuk Masa Depan Finansial yang Lebih Cerah.</p>
           </div>
         </div>
       </footer>

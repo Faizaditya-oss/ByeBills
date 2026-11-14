@@ -158,7 +158,7 @@ export default function PaymentsPage() {
             Pembayaran Cicilan
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Unggah bukti transfer pembayaran pinjaman online untuk verifikasi Admin dan dapatkan poin reward.
+            Unggah bukti transfer pembayaran pinjaman untuk verifikasi Admin dan dapatkan poin reward.
           </p>
         </div>
         <button

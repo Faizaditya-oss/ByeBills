@@ -16,7 +16,7 @@ export const ACCESSORY_CATALOG = [
     name: 'Topi Toga Lulus Utang',
     slot: ACCESSORY_SLOTS.HAT,
     pointsCost: 60,
-    description: 'Simbol kelulusan dari jeratan pinjol menuju kemandirian finansial.',
+    description: 'Simbol kelulusan dari jeratan pinjaman menuju kemandirian finansial.',
     tag: 'Eksklusif',
   },
   {

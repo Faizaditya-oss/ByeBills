@@ -114,13 +114,13 @@ export default function DashboardPage() {
           <div className="space-y-2 max-w-xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-medium border border-blue-400/30">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Ruang Pemulihan Finansial Gen Z</span>
+              <span>Ruang Pemulihan Finansial</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
               Halo, {currentUser?.name || 'Sobat ByeBills'}! 👋
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Pantau penyelesaian pinjol, verifikasi pembayaran, dan kumpulkan poin reward untuk melangkah menuju bebas utang.
+              Pantau penyelesaian pinjaman, verifikasi pembayaran, dan kumpulkan poin reward untuk melangkah menuju bebas utang.
             </p>
           </div>
 
@@ -262,7 +262,7 @@ export default function DashboardPage() {
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-slate-700">Belum Ada Kasus Pinjaman</p>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Jika Anda mengalami bunga tidak wajar atau teror pinjol, segera buat laporan pendampingan.
+                    Jika Anda mengalami bunga tidak wajar atau intimidasi penagihan, segera buat laporan pendampingan.
                   </p>
                 </div>
                 <Link
@@ -363,7 +363,7 @@ export default function DashboardPage() {
                               : 'bg-rose-50 text-rose-700 border border-rose-200'
                           }`}
                         >
-                          {loan.isOjkRegistered ? 'Terdaftar OJK' : 'Pinjol Ilegal'}
+                          {loan.isOjkRegistered ? 'Terdaftar Resmi' : 'Tidak Terdaftar'}
                         </span>
                       </div>
                       <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium capitalize">

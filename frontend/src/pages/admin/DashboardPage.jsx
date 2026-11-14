@@ -162,7 +162,7 @@ export default function DashboardPage() {
               Halo, {currentUser?.name || 'Administrator'}! 👑
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Pantau seluruh aktivitas penanganan kasus, alokasi konselor, verifikasi pembayaran, serta kesehatan operasional platform penanganan pinjol ByeBills.
+              Pantau seluruh aktivitas penanganan kasus, alokasi konselor, verifikasi pembayaran, serta kesehatan operasional platform penanganan pinjaman ByeBills.
             </p>
           </div>
 
@@ -533,7 +533,7 @@ export default function DashboardPage() {
               <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/30 space-y-1">
                 <div className="flex items-center gap-1.5 text-rose-700">
                   <ShieldAlert className="w-3.5 h-3.5" />
-                  <span className="text-[11px] font-semibold">Pinjol Ilegal</span>
+                  <span className="text-[11px] font-semibold">Pinjaman Tanpa Izin</span>
                 </div>
                 <span className="text-lg font-extrabold text-rose-900 block">
                   {loanSummary.illegalCount} Platform

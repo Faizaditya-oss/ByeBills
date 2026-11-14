@@ -39,6 +39,7 @@ import {
   checkUrgentDue,
 } from '../../utils/loanCalculations.js';
 import RepaymentPlanner from '../../components/RepaymentPlanner.jsx';
+import EditBalanceModal from '../../components/EditBalanceModal.jsx';
 
 export default function LoansPage() {
   const { currentUser } = useAuth();
@@ -47,6 +48,7 @@ export default function LoansPage() {
   const [activeTab, setActiveTab] = useState('daftar'); // 'daftar' | 'simulasi'
   const [refreshKey, setRefreshKey] = useState(0);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditBalanceModalOpen, setIsEditBalanceModalOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [isUrgentModalDismissed, setIsUrgentModalDismissed] = useState(false);
 
@@ -358,16 +360,26 @@ export default function LoansPage() {
             Pantau sisa tagihan, hitung estimasi bunga, dan rencanakan step pelunasan total hutang.
           </p>
         </div>
-        {activeTab === 'daftar' && (
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={handleToggleForm}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition self-start cursor-pointer"
+            onClick={() => setIsEditBalanceModalOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer"
           >
-            <PlusCircle className="w-4 h-4" />
-            <span>{isFormOpen ? 'Tutup Formulir' : 'Catat Pinjaman Baru'}</span>
+            <Wallet className="w-4 h-4" />
+            <span>Edit Jumlah Saldo</span>
           </button>
-        )}
+          {activeTab === 'daftar' && (
+            <button
+              type="button"
+              onClick={handleToggleForm}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition self-start cursor-pointer"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>{isFormOpen ? 'Tutup Formulir' : 'Catat Pinjaman Baru'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ─── BANNER PERINGATAN DEADLINE MEPET (JIKA ADA) ───────────────── */}
@@ -443,7 +455,7 @@ export default function LoansPage() {
         <div className="bg-white rounded-2xl p-5 border border-rose-200 bg-rose-50/20 shadow-xs space-y-1">
           <div className="flex items-center gap-1.5 text-rose-700">
             <ShieldAlert className="w-4 h-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Pinjol Ilegal</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Pinjaman Tanpa Izin</span>
           </div>
           <div className="text-2xl font-extrabold text-rose-900 tracking-tight">
             {stats.illegalCount} Pinjaman
@@ -763,7 +775,7 @@ export default function LoansPage() {
               <CreditCard className="w-12 h-12 text-slate-300 mx-auto" />
               <p className="text-sm font-semibold text-slate-700">Belum Ada Data Pinjaman</p>
               <p className="text-xs max-w-sm mx-auto">
-                Catat pinjaman online Anda untuk mendapatkan rekapitulasi beban utang dan bantuan restrukturisasi.
+                Catat pinjaman Anda untuk mendapatkan rekapitulasi beban utang dan bantuan restrukturisasi.
               </p>
             </div>
           ) : (
@@ -802,7 +814,7 @@ export default function LoansPage() {
                               : 'bg-rose-50 text-rose-700 border-rose-200'
                           }`}
                         >
-                          {loan.isOjkRegistered ? 'Terdaftar OJK' : 'Pinjol Ilegal'}
+                          {loan.isOjkRegistered ? 'Terdaftar Resmi' : 'Tidak Terdaftar'}
                         </span>
                       </div>
                       <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold uppercase">
@@ -1183,6 +1195,14 @@ export default function LoansPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Edit Jumlah Saldo */}
+      <EditBalanceModal
+        isOpen={isEditBalanceModalOpen}
+        onClose={() => setIsEditBalanceModalOpen(false)}
+        userId={userId}
+        onSaved={() => setRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 }

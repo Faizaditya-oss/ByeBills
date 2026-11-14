@@ -284,7 +284,7 @@ export default function AdminEducationPage() {
                         type="text"
                         value={formData.title}
                         onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
-                        placeholder="Contoh: Mengenal Pinjol Ilegal vs Legal"
+                        placeholder="Contoh: Mengenal Pinjaman Ilegal vs Legal"
                         className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 text-sm"
                         required
                       />

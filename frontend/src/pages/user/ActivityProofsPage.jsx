@@ -216,7 +216,7 @@ export default function ActivityProofsPage() {
         <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-sm space-y-4">
           <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
             <Sparkles className="w-4 h-4 text-amber-500" />
-            Formulir Unggah Bukti Aktivitas & Misi Bebas Pinjol
+            Formulir Unggah Bukti Aktivitas & Misi Bebas Pinjaman
           </h2>
 
           <form onSubmit={handleUploadProof} className="space-y-4">
@@ -228,7 +228,7 @@ export default function ActivityProofsPage() {
                   name="title"
                   value={formData.title}
                   onChange={handleFormChange}
-                  placeholder="Contoh: Bukti Pelunasan Tagihan Pokok Pinjol"
+                  placeholder="Contoh: Bukti Pelunasan Tagihan Pokok Pinjaman"
                   required
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
                 />

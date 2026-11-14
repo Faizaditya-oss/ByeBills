@@ -158,7 +158,7 @@ export default function CasesPage() {
             Aduan & Bantuan Customer Service
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Laporkan intimidasi pinjol, suku bunga mencekik, atau konsultasikan solusi pelunasan dengan tim Admin CS ByeBills.
+            Laporkan intimidasi penagihan, suku bunga mencekik, atau konsultasikan solusi pelunasan dengan tim Admin CS ByeBills.
           </p>
         </div>
         <button
@@ -184,7 +184,7 @@ export default function CasesPage() {
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <FolderKanban className="w-4 h-4 text-blue-600" />
-              Formulir Laporan Permasalahan Pinjol
+              Formulir Laporan Permasalahan Pinjaman
             </h2>
             <span className="text-[11px] text-slate-400">Pemberitahuan resmi ke Admin CS</span>
           </div>
@@ -224,7 +224,7 @@ export default function CasesPage() {
                   onChange={handleFormChange}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white"
                 >
-                  <option value="pinjol_ilegal">Pinjol Ilegal (Tanpa Izin OJK)</option>
+                  <option value="pinjol_ilegal">Pinjaman Ilegal (Tanpa Izin Resmi OJK)</option>
                   <option value="bunga_tinggi">Bunga Tidak Wajar / Biaya Tersembunyi</option>
                   <option value="intimidasi">Ancaman & Intimidasi Debt Collector</option>
                   <option value="pinjaman_ganda">Gali Lubang Tutup Lubang (Multiplatform)</option>

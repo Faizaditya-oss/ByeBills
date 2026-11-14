@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { ShieldCheck, LogOut, X, ChevronRight } from 'lucide-react';
+import { LogOut, X, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getNavigationForRole } from '../../config/navigation.js';
 
@@ -53,16 +53,10 @@ export default function MobileNavigation({ isOpen, onClose }) {
           <Link
             to={role === 'admin' ? '/admin' : '/dashboard'}
             onClick={onClose}
-            className="flex items-center gap-2.5"
+            className="flex items-center gap-2"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-base font-bold text-white tracking-wide">ByeBills</span>
-              <span className="text-[10px] text-blue-400 block -mt-0.5 font-medium">
-                FINTECH CARE
-              </span>
+            <div className="bg-white rounded-xl px-2 py-1 flex items-center shadow-md shadow-blue-500/10">
+              <img src="/assets/navbar.svg" alt="ByeBills" className="h-5 w-auto" />
             </div>
           </Link>
           <button

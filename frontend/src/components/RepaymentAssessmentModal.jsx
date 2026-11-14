@@ -19,7 +19,7 @@ export const REPAYMENT_QUESTIONS = [
     question: 'Saat melunasi cicilan, apa yang paling membuat Anda bersemangat?',
     options: [
       {
-        label: 'Melihat satu platform pinjol langsung lunas secepatnya agar jumlah tagihan berkurang.',
+        label: 'Melihat satu platform pinjaman langsung lunas secepatnya agar jumlah tagihan berkurang.',
         type: 'snowball',
         explanation: 'Fokus kepuasan psikologis dan momentum pelunasan dini.',
       },
@@ -36,9 +36,9 @@ export const REPAYMENT_QUESTIONS = [
     question: 'Bagaimana perasaan Anda saat ini menghadapi banyak penagihan?',
     options: [
       {
-        label: 'Sangat terbebani & panik oleh banyaknya notifikasi chat/telepon dari berbagai pinjol.',
+        label: 'Sangat terbebani & panik oleh banyaknya notifikasi chat/telepon dari berbagai penagihan pinjaman.',
         type: 'snowball',
-        explanation: 'Mengurangi jumlah aplikasi aktif secepat mungkin sangat membantu mental Anda.',
+        explanation: 'Mengurangi jumlah tagihan aktif secepat mungkin sangat membantu mental Anda.',
       },
       {
         label: 'Cukup tenang secara emosional, namun jengkel melihat bunga terus membengkak tinggi.',
@@ -49,7 +49,7 @@ export const REPAYMENT_QUESTIONS = [
   },
   {
     id: 3,
-    title: 'Tipe Beban Pinjol',
+    title: 'Tipe Beban Pinjaman',
     question: 'Bagaimana komposisi bunga dan pinjaman yang Anda miliki saat ini?',
     options: [
       {
@@ -58,7 +58,7 @@ export const REPAYMENT_QUESTIONS = [
         explanation: 'Memudahkan Anda mencoret daftar utang satu per satu.',
       },
       {
-        label: 'Ada 1 atau lebih pinjol dengan bunga mencekik (harian/ilegal) yang terus berlipat.',
+        label: 'Ada 1 atau lebih pinjaman dengan bunga mencekik (harian/tanpa izin) yang terus berlipat.',
         type: 'avalanche',
         explanation: 'Bunga berbunga wajib diputus secepatnya agar tidak meledak.',
       },
@@ -89,10 +89,10 @@ export const REPAYMENT_QUESTIONS = [
       {
         label: 'Saya prioritaskan melunasi tagihan yang sisa saldonya paling tipis agar segera tuntas.',
         type: 'snowball',
-        explanation: 'Mengeliminasi satu akun pinjol dari daftar beban hidup.',
+        explanation: 'Mengeliminasi satu akun pinjaman dari daftar beban hidup.',
       },
       {
-        label: 'Saya setorkan ke pinjol yang bunganya paling tinggi meski sisa pokoknya masih besar.',
+        label: 'Saya setorkan ke pinjaman yang bunganya paling tinggi meski sisa pokoknya masih besar.',
         type: 'avalanche',
         explanation: 'Menahan laju pertumbuhan bunga yang merugikan.',
       },

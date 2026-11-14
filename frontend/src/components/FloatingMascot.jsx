@@ -110,7 +110,7 @@ export default function FloatingMascot() {
                   Tanya Bubu &bull; FAQ Finansial
                 </h3>
                 <p className="text-[11px] text-emerald-100 leading-tight mt-0.5">
-                  Jawaban &amp; solusi praktis seputar pinjol untukmu
+                  Jawaban &amp; solusi praktis seputar pinjaman untukmu
                 </p>
               </div>
             </div>
@@ -199,7 +199,7 @@ export default function FloatingMascot() {
           <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 text-center shrink-0">
             <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1">
               <Sparkles className="w-3 h-3 text-emerald-500" />
-              Bubu siap menemani perjalanan bebas utangmu!
+              ByeBills siap menemani perjalanan bebas utangmu!
             </p>
           </div>
         </div>
@@ -214,7 +214,7 @@ export default function FloatingMascot() {
             ? 'bg-slate-900 border-emerald-400 scale-95 ring-4 ring-emerald-400/30'
             : 'bg-gradient-to-tr from-emerald-500 via-teal-400 to-emerald-300 border-white hover:scale-110 active:scale-95 hover:shadow-2xl hover:shadow-emerald-500/40 ring-4 ring-emerald-500/10'
         }`}
-        title="Tanya Bubu seputar finansial"
+        title="Tanya ByeBills seputar finansial"
         aria-expanded={isOpen}
       >
         <div className="w-full h-full flex items-center justify-center">

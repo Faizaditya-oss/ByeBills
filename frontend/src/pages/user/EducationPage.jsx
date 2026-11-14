@@ -378,7 +378,7 @@ export default function EducationPage() {
                     ? 'Sangat baik! Anda selalu memprioritaskan kewajiban pembayaran tepat waktu dan menjauhi beban utang yang berlebihan.'
                     : latestQuiz.characterType === 'Impulsif Eksploratif'
                     ? 'Waspada! Anda rentan tergiur promo pinjaman instan untuk hal konsumtif. Mulailah menetapkan pagu anggaran 50/30/20.'
-                    : 'Jangan berkecil hati. Bubu dan tim Admin siap mendampingi Anda mengatur ulang arus kas dan melunasi utang berjalan.'}
+                    : 'Jangan berkecil hati. ByeBills dan tim Admin siap mendampingi Anda mengatur ulang arus kas dan melunasi utang berjalan.'}
                 </p>
                 <div className="text-xs text-slate-400 mt-3">
                   Terakhir diambil: {new Date(latestQuiz.takenAt).toLocaleDateString('id-ID', { dateStyle: 'long' })}

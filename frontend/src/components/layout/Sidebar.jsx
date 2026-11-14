@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { ShieldCheck, LogOut, ChevronRight } from 'lucide-react';
+import { LogOut, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getNavigationForRole } from '../../config/navigation.js';
 
@@ -40,17 +40,11 @@ export default function Sidebar({ onItemClick }) {
       <div className="h-16 px-6 flex items-center justify-between border-b border-slate-800/80">
         <Link
           to={role === 'admin' ? '/admin' : '/dashboard'}
-          className="flex items-center gap-2.5 group"
+          className="flex items-center gap-2 group"
           onClick={onItemClick}
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 text-white flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-base font-bold text-white tracking-wide">ByeBills</span>
-            <span className="text-[10px] text-blue-400 block -mt-0.5 font-medium tracking-wider">
-              FINTECH CARE
-            </span>
+          <div className="bg-white rounded-xl px-2.5 py-1.5 flex items-center shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform">
+            <img src="/assets/navbar.svg" alt="ByeBills" className="h-6 w-auto" />
           </div>
         </Link>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-400 font-mono border border-slate-700/50">

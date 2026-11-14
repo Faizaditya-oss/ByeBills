@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShieldCheck, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function LoginPage() {
@@ -92,12 +92,12 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mb-1">
-              <ShieldCheck className="w-7 h-7" />
+            <div className="flex justify-center mb-3">
+              <img src="/assets/navbar.svg" alt="ByeBills" className="h-9 w-auto" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Masuk ke ByeBills</h1>
+            
             <p className="text-sm text-slate-500">
-              Akses akun pendampingan finansial dan pemulihan pinjol Anda
+              Akses akun pendampingan finansial dan pemulihan pinjaman Anda
             </p>
           </div>
 

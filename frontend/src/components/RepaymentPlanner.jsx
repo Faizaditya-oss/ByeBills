@@ -30,8 +30,8 @@ import {
   Wallet,
   Clock,
   Sparkles,
-  ShieldCheck,
   ShieldAlert,
+  Pencil,
 } from 'lucide-react';
 import { createRepaymentPlan, getFinancialProfileByUser } from '../services/storage.js';
 import {
@@ -40,8 +40,33 @@ import {
   checkUrgentDue,
 } from '../utils/loanCalculations.js';
 import RepaymentAssessmentModal from './RepaymentAssessmentModal.jsx';
+import EditBalanceModal from './EditBalanceModal.jsx';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function getStepDate(startDateStr, monthOffset) {
+  const d = new Date(startDateStr);
+  d.setMonth(d.getMonth() + monthOffset);
+  return d;
+}
+
+function formatHariBulanTahun(dateInput) {
+  if (!dateInput) return { long: '-', numeric: '-' };
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return { long: String(dateInput), numeric: String(dateInput) };
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const dateFormattedLong = d.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  return {
+    long: dateFormattedLong,
+    numeric: `${day}-${month}-${year}`,
+  };
+}
 
 function addMonths(dateStr, n) {
   const d = new Date(dateStr);
@@ -150,22 +175,26 @@ function simulateRepayment(loans, monthlyBudget, strategy) {
 function CompletionTimeline({ order, startDate }) {
   return (
     <div className="space-y-3">
-      {order.map((item, idx) => (
-        <div key={item.id} className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[11px] font-bold">
-            {idx + 1}
+      {order.map((item, idx) => {
+        const stepDate = getStepDate(startDate, item.finishMonth);
+        const dateFormatted = formatHariBulanTahun(stepDate);
+        return (
+          <div key={item.id} className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[11px] font-bold">
+              {idx + 1}
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-semibold text-slate-800 block truncate">{item.platform}</span>
+              <span className="text-[11px] text-slate-500 block">
+                Lunas pada Step Bulan ke-{item.finishMonth} · <strong className="text-emerald-700 font-semibold">{dateFormatted.long}</strong> ({dateFormatted.numeric})
+              </span>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-[11px] text-slate-400 font-mono block">{formatRupiah(item.originalBalance)}</span>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <span className="text-xs font-semibold text-slate-800 block truncate">{item.platform}</span>
-            <span className="text-[11px] text-slate-500">
-              Lunas bulan ke-{item.finishMonth} · {addMonths(startDate, item.finishMonth)}
-            </span>
-          </div>
-          <div className="text-right shrink-0">
-            <span className="text-[11px] text-slate-400 font-mono block">{formatRupiah(item.originalBalance)}</span>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -178,14 +207,16 @@ export default function RepaymentPlanner({ loans, userId }) {
   const [showSchedule, setShowSchedule]   = useState(false);
   const [saveStatus, setSaveStatus]       = useState('');
   const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
+  const [isEditBalanceModalOpen, setIsEditBalanceModalOpen] = useState(false);
+  const [profileRefreshKey, setProfileRefreshKey] = useState(0);
 
   const startDate = useMemo(() => new Date().toISOString(), []);
 
-  // Ambil profil preferensi pengguna hasil asesmen 5 pertanyaan
+  // Ambil profil preferensi pengguna hasil asesmen 5 pertanyaan & kondisi saldo
   const financialProfile = useMemo(() => {
     if (!userId) return null;
     return getFinancialProfileByUser(userId);
-  }, [userId, isAssessmentModalOpen]);
+  }, [userId, isAssessmentModalOpen, profileRefreshKey]);
 
   const assessedStrategy = financialProfile?.repaymentAssessment?.strategy || null;
 
@@ -341,16 +372,26 @@ export default function RepaymentPlanner({ loans, userId }) {
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-5">
         
         {/* Ringkasan Profil Saldo & Pengeluaran Pengguna */}
-        {(userBalance > 0 || monthlyExpense > 0 || dailyExpense > 0) && (
+        {userBalance > 0 || monthlyExpense > 0 || dailyExpense > 0 ? (
           <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50/60 to-slate-50 border border-emerald-200/80 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
                 <Wallet className="w-3.5 h-3.5 text-emerald-700" />
                 Kondisi Finansial &amp; Likuiditas Anda
               </span>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
-                Data Tersinkronisasi
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full hidden sm:inline">
+                  Data Tersinkronisasi
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditBalanceModalOpen(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-semibold transition cursor-pointer shadow-xs"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Edit Jumlah Saldo</span>
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
               <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100">
@@ -380,6 +421,26 @@ export default function RepaymentPlanner({ loans, userId }) {
                 </span>
               </div>
             </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <Wallet className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-emerald-900 block">Saldo Tabungan Belum Diatur</span>
+                <span className="text-[11px] text-emerald-700">Masukkan jumlah saldo tabungan Anda untuk membantu perhitungan kemampuan pelunasan.</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditBalanceModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              <span>Edit Jumlah Saldo</span>
+            </button>
           </div>
         )}
 
@@ -497,7 +558,7 @@ export default function RepaymentPlanner({ loans, userId }) {
             </div>
 
             {/* Quick Preset Buttons jika ada saldo */}
-            {userBalance > 0 && (
+            {userBalance > 0 ? (
               <div className="flex items-center gap-2 overflow-x-auto">
                 <button
                   type="button"
@@ -520,7 +581,24 @@ export default function RepaymentPlanner({ loans, userId }) {
                 >
                   Gunakan Semua Saldo ({formatRupiah(userBalance)})
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditBalanceModalOpen(true)}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold border border-slate-200 transition cursor-pointer shrink-0 flex items-center gap-1"
+                >
+                  <Pencil className="w-2.5 h-2.5" />
+                  <span>Edit Saldo</span>
+                </button>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditBalanceModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200 transition cursor-pointer shrink-0 flex items-center gap-1"
+              >
+                <Wallet className="w-3 h-3" />
+                <span>+ Masukkan Saldo Tabungan</span>
+              </button>
             )}
           </div>
           <p className="text-[11px] text-slate-400">
@@ -699,8 +777,8 @@ export default function RepaymentPlanner({ loans, userId }) {
                 {result.totalMonths}{' '}
                 <span className="text-sm font-semibold text-slate-500">bulan</span>
               </p>
-              <p className="text-[11px] text-slate-400">
-                Estimasi: {addMonths(startDate, result.totalMonths)}
+              <p className="text-[11px] text-slate-500 font-medium">
+                Tenggat Akhir: <strong className="text-emerald-700">{formatHariBulanTahun(getStepDate(startDate, result.totalMonths)).long}</strong> ({formatHariBulanTahun(getStepDate(startDate, result.totalMonths)).numeric})
               </p>
             </div>
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 space-y-1">
@@ -740,10 +818,15 @@ export default function RepaymentPlanner({ loans, userId }) {
               ? 'bg-gradient-to-br from-rose-700 to-rose-900'
               : 'bg-gradient-to-br from-blue-800 to-indigo-950'
           }`}>
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <Flame className="w-4 h-4 text-white/80" />
-              Langkah Prioritas Bulan Ini
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <Flame className="w-4 h-4 text-white/80" />
+                Langkah Prioritas Bulan Ini (Step 1)
+              </h3>
+              <span className="text-[11px] text-white/90 bg-white/20 px-2.5 py-0.5 rounded-full font-medium self-start sm:self-auto">
+                Tenggat Step 1: {formatHariBulanTahun(getStepDate(startDate, 1)).long} ({formatHariBulanTahun(getStepDate(startDate, 1)).numeric})
+              </span>
+            </div>
             <div className="space-y-2.5">
               {result.schedule[0]?.payments
                 .slice()
@@ -770,14 +853,18 @@ export default function RepaymentPlanner({ loans, userId }) {
                             <p className="text-xs font-semibold text-white truncate">{p.platform}</p>
                             {matchingLoan?.urgentInfo?.isUrgent && (
                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400 text-slate-900 font-extrabold flex items-center gap-0.5">
-                                <Clock className="w-2.5 h-2.5" /> Mepet ({matchingLoan.dueDate})
+                                <Clock className="w-2.5 h-2.5" /> Mepet ({formatHariBulanTahun(matchingLoan.dueDate).numeric})
                               </span>
                             )}
                           </div>
                           <p className="text-[10px] text-white/70">
                             Bunga: {formatRupiah(Math.round(p.interest))} · Pokok: {formatRupiah(Math.round(p.principal))}
-                            {matchingLoan?.dueDate && ` · Batas: ${matchingLoan.dueDate}`}
                           </p>
+                          {matchingLoan?.dueDate && (
+                            <p className="text-[10px] text-white/90 font-medium mt-0.5">
+                              Tenggat Pinjaman: {formatHariBulanTahun(matchingLoan.dueDate).long} ({formatHariBulanTahun(matchingLoan.dueDate).numeric})
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0 ml-2">
@@ -821,8 +908,10 @@ export default function RepaymentPlanner({ loans, userId }) {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-4 py-2.5 text-left font-semibold text-slate-600 whitespace-nowrap">Bln</th>
-                      <th className="px-4 py-2.5 text-left font-semibold text-slate-600 whitespace-nowrap">Periode</th>
+                      <th className="px-4 py-2.5 text-left font-semibold text-slate-600 whitespace-nowrap">Step</th>
+                      <th className="px-4 py-2.5 text-left font-semibold text-slate-600 whitespace-nowrap">
+                        Tenggat Pinjaman (Hari-Bulan-Tahun)
+                      </th>
                       {activeLoans.map((l) => (
                         <th key={l.id} className="px-4 py-2.5 text-right font-semibold text-slate-600 whitespace-nowrap">
                           {l.platform}
@@ -832,32 +921,43 @@ export default function RepaymentPlanner({ loans, userId }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {result.schedule.slice(0, 24).map((row) => (
-                      <tr key={row.month} className="border-b border-slate-50 hover:bg-slate-50/50">
-                        <td className="px-4 py-2 font-mono text-slate-500">{row.month}</td>
-                        <td className="px-4 py-2 text-slate-500 whitespace-nowrap">
-                          {addMonths(startDate, row.month)}
-                        </td>
-                        {activeLoans.map((l) => {
-                          const p = row.payments.find((x) => x.id === l.id);
-                          const done = p?.balanceAfter === 0;
-                          return (
-                            <td key={l.id} className="px-4 py-2 text-right whitespace-nowrap">
-                              {p ? (
-                                <span className={done ? 'text-emerald-600 font-semibold' : 'text-slate-700'}>
-                                  {done && p.payment === 0 ? '✓ Lunas' : formatRupiah(Math.round(p.payment))}
-                                </span>
-                              ) : (
-                                <span className="text-emerald-600 font-semibold">✓ Lunas</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                        <td className="px-4 py-2 text-right font-bold text-slate-800 whitespace-nowrap">
-                          {formatRupiah(row.payments.reduce((s, p) => s + Math.round(p.payment), 0))}
-                        </td>
-                      </tr>
-                    ))}
+                    {result.schedule.slice(0, 24).map((row) => {
+                      const stepDate = getStepDate(startDate, row.month);
+                      const dateFmt = formatHariBulanTahun(stepDate);
+                      return (
+                        <tr key={row.month} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="px-4 py-2 font-mono font-bold text-slate-600 whitespace-nowrap">
+                            Step {row.month}
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className="font-semibold text-slate-700">
+                              {dateFmt.long}
+                            </div>
+                            <div className="text-[10px] font-mono text-slate-400">
+                              {dateFmt.numeric}
+                            </div>
+                          </td>
+                          {activeLoans.map((l) => {
+                            const p = row.payments.find((x) => x.id === l.id);
+                            const done = p?.balanceAfter === 0;
+                            return (
+                              <td key={l.id} className="px-4 py-2 text-right whitespace-nowrap">
+                                {p ? (
+                                  <span className={done ? 'text-emerald-600 font-semibold' : 'text-slate-700'}>
+                                    {done && p.payment === 0 ? '✓ Lunas' : formatRupiah(Math.round(p.payment))}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-600 font-semibold">✓ Lunas</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td className="px-4 py-2 text-right font-bold text-slate-800 whitespace-nowrap">
+                            {formatRupiah(row.payments.reduce((s, p) => s + Math.round(p.payment), 0))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {result.schedule.length > 24 && (
                       <tr>
                         <td colSpan={activeLoans.length + 3} className="px-4 py-3 text-center text-slate-400 italic text-xs">
@@ -924,6 +1024,14 @@ export default function RepaymentPlanner({ loans, userId }) {
           setSelectedMode(newStrategy);
           setIsAssessmentModalOpen(false);
         }}
+      />
+
+      {/* Modal Edit Jumlah Saldo */}
+      <EditBalanceModal
+        isOpen={isEditBalanceModalOpen}
+        onClose={() => setIsEditBalanceModalOpen(false)}
+        userId={userId}
+        onSaved={() => setProfileRefreshKey((k) => k + 1)}
       />
     </div>
   );

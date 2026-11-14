@@ -152,7 +152,7 @@ export default function ProfilePage() {
         <div className="w-28 h-28 rounded-2xl bg-gradient-to-b from-emerald-50 via-teal-50 to-emerald-100/60 p-2 border-2 border-emerald-200 shadow-inner flex items-center justify-center shrink-0 relative group">
           <BubuCharacter equippedAccessories={avatarConfig.equippedAccessories} size="md" />
           <div className="absolute -bottom-2 -right-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-bold shadow-xs">
-            Bubu
+            ByeBills
           </div>
         </div>
 
@@ -235,7 +235,7 @@ export default function ProfilePage() {
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               Sistem Kustomisasi Avatar
             </div>
-            <h2 className="text-lg font-bold text-slate-800">Karakter &amp; Lemari Aksesori BUBU</h2>
+            <h2 className="text-lg font-bold text-slate-800">Karakter &amp; Lemari Aksesori ByeBills</h2>
             <p className="text-xs text-slate-500 mt-0.5">
               Gunakan poin penghargaan Anda untuk membuka aksesori dan personalisasi maskot profil Anda.
             </p>

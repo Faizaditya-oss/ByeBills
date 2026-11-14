@@ -65,7 +65,7 @@ export default function RewardsPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Riwayat Penukaran &amp; Mutasi Poin</h1>
           <p className="text-amber-100 text-sm max-w-xl leading-relaxed">
-            Poin Anda kini dapat digunakan langsung untuk menukar berbagai aksesori karakter maskot BUBU di halaman Profil.
+            Poin Anda kini dapat digunakan langsung untuk menukar berbagai aksesori karakter maskot ByeBills di halaman Profil.
           </p>
           <div className="pt-1">
             <Link

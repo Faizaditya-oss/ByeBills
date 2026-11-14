@@ -80,6 +80,11 @@ function sortLoans(loans, method) {
   });
 }
 
+/** Tenor efektif pinjaman (bulan). Default 12 jika data tenor tidak diisi. */
+function getLoanTenor(loan) {
+  return Number(loan.tenor) || 12;
+}
+
 /** Kalkulasi cicilan flat sederhana dari sisa pokok / tenor */
 function calcMonthlyPayment(loan) {
   const principal = loan.currentBalance || loan.originalAmount || 0;
@@ -134,6 +139,12 @@ export default function RepaymentPlanner({ loans = [], userId }) {
   // Total sisa hutang semua pinjaman aktif
   const totalRemaining = useMemo(
     () => activeLoans.reduce((s, l) => s + (l.currentBalance || 0), 0),
+    [activeLoans]
+  );
+
+  // Tenor terpanjang antar pinjaman aktif, dipakai sebagai jumlah baris jadwal
+  const maxLoanTenor = useMemo(
+    () => activeLoans.reduce((max, l) => Math.max(max, getLoanTenor(l)), 1),
     [activeLoans]
   );
 
@@ -583,13 +594,18 @@ export default function RepaymentPlanner({ loans = [], userId }) {
               </div>
             )}
 
-            {/* Jadwal tenggat per step bulan sesuai prioritas */}
+            {/* Jadwal tenggat per step bulan sesuai prioritas & tenor masing-masing */}
             {method && sortedLoans.length > 0 && (
               <div className="space-y-2 pt-1">
-                <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                  Jadwal Tenggat Jatuh Tempo per Step Bulan (Prioritas: {method === 'snowball' ? 'Snowball' : 'Avalanche'})
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-1">
+                  <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    Jadwal Tenggat Jatuh Tempo per Step Bulan (Prioritas: {method === 'snowball' ? 'Snowball' : 'Avalanche'})
+                  </p>
+                  <span className="text-[10px] text-slate-400">
+                    Step mengikuti tenor tiap pinjaman
+                  </span>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-[11px] border-separate border-spacing-0">
                     <thead>
@@ -612,12 +628,15 @@ export default function RepaymentPlanner({ loans = [], userId }) {
                             {idx === 0 && (
                               <span className="block text-[9px] font-bold">★ Fokus</span>
                             )}
+                            <span className="block text-[9px] font-medium text-slate-400">
+                              {getLoanTenor(loan)} bln
+                            </span>
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: Math.min(months, 24) }, (_, i) => {
+                      {Array.from({ length: Math.min(maxLoanTenor, 24) }, (_, i) => {
                         const stepNum = i + 1;
                         const now = new Date();
                         return (
@@ -626,38 +645,44 @@ export default function RepaymentPlanner({ loans = [], userId }) {
                               Bln {stepNum}
                             </td>
                             {sortedLoans.map((loan, lIdx) => {
+                              const loanTenor = getLoanTenor(loan);
+                              const isFinalStep = stepNum === loanTenor;
+                              const isSettled = stepNum > loanTenor;
                               const stepDate = new Date(now);
                               stepDate.setMonth(now.getMonth() + stepNum);
                               const day = loan.dueDateDay || stepDate.getDate();
                               stepDate.setDate(Math.min(day, 28));
-                              const isLast = stepNum === months;
+                              const focusCls =
+                                lIdx === 0
+                                  ? method === 'snowball'
+                                    ? 'text-blue-700'
+                                    : 'text-rose-700'
+                                  : 'text-slate-600';
                               return (
                                 <td
                                   key={loan.id}
                                   className={`px-3 py-2 text-center border border-slate-100 whitespace-nowrap font-semibold ${
-                                    isLast
+                                    isFinalStep
                                       ? 'bg-emerald-50 text-emerald-700'
-                                      : lIdx === 0
-                                      ? method === 'snowball'
-                                        ? 'text-blue-700'
-                                        : 'text-rose-700'
-                                      : 'text-slate-600'
+                                      : isSettled
+                                      ? 'text-slate-300'
+                                      : focusCls
                                   }`}
                                 >
-                                  {isLast && lIdx === 0 ? '✓ LUNAS' : formatTanggal(stepDate)}
+                                  {isFinalStep ? '✓ LUNAS' : isSettled ? '—' : formatTanggal(stepDate)}
                                 </td>
                               );
                             })}
                           </tr>
                         );
                       })}
-                      {months > 24 && (
+                      {maxLoanTenor > 24 && (
                         <tr>
                           <td
                             colSpan={sortedLoans.length + 1}
                             className="px-3 py-2 text-center text-slate-400 italic border border-slate-100"
                           >
-                            ... dan {months - 24} bulan berikutnya hingga bulan ke-{months}
+                            ... dan {maxLoanTenor - 24} bulan berikutnya hingga bulan ke-{maxLoanTenor}
                           </td>
                         </tr>
                       )}

@@ -103,6 +103,21 @@ function calcMonthlyPayment(loan) {
   return Math.ceil((principal * r * Math.pow(1 + r, tenor)) / (Math.pow(1 + r, tenor) - 1));
 }
 
+function calcLoanTotalPayment(loan) {
+  const tenor = getLoanTenor(loan);
+  const monthlyPayment = calcMonthlyPayment(loan);
+  const adminFee = Number(loan.adminFee) || 0;
+  return monthlyPayment * tenor + adminFee;
+}
+
+const SLIDER_MIN_MONTHS = 3;
+const SLIDER_MAX_MONTHS = 36;
+const SLIDER_TICK_MONTHS = [3, 12, 24, 36];
+
+function getSliderTickPercent(value) {
+  return ((value - SLIDER_MIN_MONTHS) / (SLIDER_MAX_MONTHS - SLIDER_MIN_MONTHS)) * 100;
+}
+
 // Label OJK
 const OJK_LABEL = { ojk: 'Berizin OJK', ilegal: 'Ilegal', tidak_tahu: 'Tidak Tahu' };
 
@@ -136,13 +151,12 @@ export default function RepaymentPlanner({ loans = [], userId }) {
     [loans]
   );
 
-  // Total sisa hutang semua pinjaman aktif
+  // Total sisa pokok semua pinjaman aktif
   const totalRemaining = useMemo(
     () => activeLoans.reduce((s, l) => s + (l.currentBalance || 0), 0),
     [activeLoans]
   );
 
-  // Tenor terpanjang antar pinjaman aktif, dipakai sebagai jumlah baris jadwal
   const maxLoanTenor = useMemo(
     () => activeLoans.reduce((max, l) => Math.max(max, getLoanTenor(l)), 1),
     [activeLoans]
@@ -154,9 +168,16 @@ export default function RepaymentPlanner({ loans = [], userId }) {
     [activeLoans, method]
   );
 
+  // Total kewajiban seluruh pinjaman
+  const totalObligation = useMemo(
+    () => sortedLoans.reduce((sum, loan) => sum + calcLoanTotalPayment(loan), 0),
+    [sortedLoans]
+  );
+  const totalEstimatedInterest = Math.max(totalObligation - totalRemaining, 0);
+
   // ── Kalkulasi Slider ─────────────────────────────────────────────────────
 
-  const perMonth = totalRemaining > 0 ? Math.ceil(totalRemaining / months) : 0;
+  const perMonth = totalObligation > 0 ? Math.ceil(totalObligation / months) : 0;
   const perDay = perMonth > 0 ? Math.ceil(perMonth / 30) : 0;
 
   // Kemampuan tersedia setelah pengeluaran pokok
@@ -165,9 +186,35 @@ export default function RepaymentPlanner({ loans = [], userId }) {
     : 0;
 
   // Estimasi bulan lunas dari kemampuan tersedia
-  const estimatedMonths = availableMonthly > 0 && totalRemaining > 0
-    ? Math.ceil(totalRemaining / availableMonthly)
+  const estimatedMonths = availableMonthly > 0 && totalObligation > 0
+    ? Math.ceil(totalObligation / availableMonthly)
     : null;
+
+  const amortization = useMemo(() => {
+    const columns = sortedLoans.map((loan, index) => ({
+      loan,
+      index,
+      tenor: getLoanTenor(loan),
+      monthlyPayment: calcMonthlyPayment(loan),
+    }));
+
+    const rows = Array.from({ length: maxLoanTenor }, (_, i) => {
+      const period = i + 1;
+      return {
+        period,
+        cells: columns.map((col) => {
+          const isActive = period <= col.tenor;
+          return {
+            isActive,
+            platform: isActive ? col.loan.platform : '',
+            amount: isActive ? col.monthlyPayment : 0,
+          };
+        }),
+      };
+    });
+
+    return { columns, rows };
+  }, [sortedLoans, maxLoanTenor]);
 
   // Status beban
   const statusInfo = useMemo(() => {
@@ -451,15 +498,18 @@ export default function RepaymentPlanner({ loans = [], userId }) {
             Simulasi: Rencana Lunas dalam Berapa Bulan?
           </h2>
           <p className="text-[11px] text-slate-400 mt-1 ml-7">
-            Geser slider untuk melihat berapa yang perlu disisihkan setiap bulan & hari.
+            Geser slider untuk melihat berapa yang perlu disisihkan setiap bulan & hari. Perhitungan sudah termasuk pokok + bunga.
           </p>
         </div>
 
-        {/* Total Sisa */}
+        {/* Total Kewajiban */}
         <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900 text-white">
           <div>
-            <span className="text-[10px] text-slate-400 block">Total Sisa yang Harus Dibayar</span>
-            <span className="text-lg font-extrabold text-emerald-400">{formatRupiah(totalRemaining)}</span>
+            <span className="text-[10px] text-slate-400 block">Total Kewajiban (Pokok + Bunga + Biaya)</span>
+            <span className="text-lg font-extrabold text-emerald-400">{formatRupiah(totalObligation)}</span>
+            <span className="block text-[10px] text-slate-400 mt-0.5">
+              Pokok {formatRupiah(totalRemaining)} · Bunga & biaya {formatRupiah(totalEstimatedInterest)}
+            </span>
           </div>
           <div className="text-right">
             <span className="text-[10px] text-slate-400 block">{activeLoans.length} pinjaman aktif</span>
@@ -488,23 +538,45 @@ export default function RepaymentPlanner({ loans = [], userId }) {
             </span>
           </div>
 
-          <div className="relative py-1">
-            <input
-              type="range"
-              min={3}
-              max={36}
-              step={1}
-              value={months}
-              onChange={(e) => setMonths(Number(e.target.value))}
-              className="w-full h-2.5 bg-slate-200 hover:bg-slate-300 rounded-lg appearance-none cursor-pointer accent-blue-600 transition-colors"
-            />
-          </div>
+          <div className="relative pt-1">
+            <div className="relative">
+              <input
+                type="range"
+                min={SLIDER_MIN_MONTHS}
+                max={SLIDER_MAX_MONTHS}
+                step={1}
+                value={months}
+                onChange={(e) => setMonths(Number(e.target.value))}
+                aria-label="Target lunas dalam bulan"
+                className="bubu-range block w-full h-2.5 bg-slate-200 hover:bg-slate-300 rounded-lg appearance-none cursor-pointer accent-blue-600 transition-colors"
+              />
+              <div className="pointer-events-none absolute inset-x-[9px] top-1/2 -translate-y-1/2">
+                {SLIDER_TICK_MONTHS.map((value) => (
+                  <span
+                    key={value}
+                    className="absolute h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400"
+                    style={{ left: `${getSliderTickPercent(value)}%` }}
+                  />
+                ))}
+              </div>
+            </div>
 
-          <div className="flex justify-between text-[10px] text-slate-500 font-semibold px-0.5">
-            <span>3 bln</span>
-            <span>12 bln</span>
-            <span>24 bln</span>
-            <span>36 bln</span>
+            <div className="relative mx-[9px] mt-2 h-4">
+              {SLIDER_TICK_MONTHS.map((value) => {
+                const isActive = value === months;
+                return (
+                  <span
+                    key={value}
+                    className={`absolute -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold transition-colors ${
+                      isActive ? 'text-blue-700' : 'text-slate-500'
+                    }`}
+                    style={{ left: `${getSliderTickPercent(value)}%` }}
+                  >
+                    {value} bln
+                  </span>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -515,19 +587,19 @@ export default function RepaymentPlanner({ loans = [], userId }) {
             <div className="rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-sky-50 border border-blue-200 overflow-hidden">
               <div className="px-5 py-3 bg-blue-600 flex items-center justify-between">
                 <span className="text-xs font-bold text-white">
-                  Lunas dalam <strong>{months} bulan</strong>, berarti sisihkan:
+                  Lunas dalam <strong>{months} bulan</strong>, berarti sisihkan (pokok + bunga):
                 </span>
               </div>
               <div className="p-5 grid grid-cols-2 gap-4">
                 <div className="bg-white rounded-xl p-4 border border-blue-100 space-y-0.5 text-center">
                   <span className="text-[10px] text-slate-500 font-medium block">Per Bulan</span>
                   <p className="text-xl font-extrabold text-blue-700">{formatRupiah(perMonth)}</p>
-                  <span className="text-[10px] text-slate-400">selama {months} bulan</span>
+                  <span className="text-[10px] text-slate-400">selama {months} bulan · termasuk bunga</span>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-blue-100 space-y-0.5 text-center">
                   <span className="text-[10px] text-slate-500 font-medium block">Per Hari</span>
                   <p className="text-xl font-extrabold text-indigo-700">{formatRupiah(perDay)}</p>
-                  <span className="text-[10px] text-slate-400">≈ {months * 30} hari</span>
+                  <span className="text-[10px] text-slate-400">≈ {months * 30} hari · termasuk bunga</span>
                 </div>
               </div>
             </div>
@@ -594,101 +666,91 @@ export default function RepaymentPlanner({ loans = [], userId }) {
               </div>
             )}
 
-            {/* Jadwal tenggat per step bulan sesuai prioritas & tenor masing-masing */}
-            {method && sortedLoans.length > 0 && (
+            {/* Jadwal amortisasi bulanan (pivot): baris periode, kolom per pinjaman */}
+            {sortedLoans.length > 0 && (
               <div className="space-y-2 pt-1">
                 <div className="flex flex-wrap items-center justify-between gap-1">
                   <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                    Jadwal Tenggat Jatuh Tempo per Step Bulan (Prioritas: {method === 'snowball' ? 'Snowball' : 'Avalanche'})
+                    Jadwal Amortisasi Bulanan (Pivot per Pinjaman)
                   </p>
                   <span className="text-[10px] text-slate-400">
-                    Step mengikuti tenor tiap pinjaman
+                    {method
+                      ? `Urutan: ${method === 'snowball' ? 'Snowball' : 'Avalanche'}`
+                      : 'Urutan: sesuai daftar pinjaman'}
                   </span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[11px] border-separate border-spacing-0">
+                <div className="overflow-auto max-h-[420px] rounded-xl border border-slate-200">
+                  <table className="w-full text-[11px] border-separate border-spacing-0 min-w-max">
                     <thead>
-                      <tr className="bg-slate-50">
-                        <th className="px-3 py-2 text-left font-semibold text-slate-600 border border-slate-200 rounded-tl-lg">
-                          Step Bulan
+                      <tr>
+                        <th className="sticky left-0 top-0 z-30 bg-slate-50 px-3 py-2 text-left font-semibold text-slate-600 border-b border-r border-slate-200 whitespace-nowrap">
+                          Periode
                         </th>
-                        {sortedLoans.map((loan, idx) => (
-                          <th
-                            key={loan.id}
-                            className={`px-3 py-2 text-center font-semibold border border-slate-200 ${
-                              idx === 0
-                                ? method === 'snowball'
-                                  ? 'text-blue-700 bg-blue-50'
-                                  : 'text-rose-700 bg-rose-50'
-                                : 'text-slate-600'
-                            }`}
-                          >
-                            {loan.platform}
-                            {idx === 0 && (
-                              <span className="block text-[9px] font-bold">★ Fokus</span>
-                            )}
-                            <span className="block text-[9px] font-medium text-slate-400">
-                              {getLoanTenor(loan)} bln
-                            </span>
-                          </th>
-                        ))}
+                        {amortization.columns.map((col) => {
+                          const isFocus = Boolean(method) && col.index === 0;
+                          const headerFocus = isFocus
+                            ? method === 'snowball'
+                              ? 'text-blue-700 bg-blue-50'
+                              : 'text-rose-700 bg-rose-50'
+                            : 'text-slate-600 bg-slate-50';
+                          return (
+                            <React.Fragment key={col.loan.id}>
+                              <th className={`sticky top-0 z-10 px-3 py-2 text-center font-semibold border-b border-slate-200 whitespace-nowrap ${headerFocus}`}>
+                                Pinjaman {col.index + 1}{isFocus ? ' ★' : ''}
+                                <span className="block text-[9px] font-medium text-slate-400">
+                                  {col.loan.platform} · {col.tenor} bln
+                                </span>
+                              </th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-3 py-2 text-center font-semibold text-slate-600 border-b border-l border-slate-200 whitespace-nowrap">
+                                Jumlah
+                              </th>
+                            </React.Fragment>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: Math.min(maxLoanTenor, 24) }, (_, i) => {
-                        const stepNum = i + 1;
-                        const now = new Date();
-                        return (
-                          <tr key={stepNum} className="hover:bg-slate-50/50">
-                            <td className="px-3 py-2 font-mono font-bold text-slate-600 border border-slate-100 whitespace-nowrap">
-                              Bln {stepNum}
-                            </td>
-                            {sortedLoans.map((loan, lIdx) => {
-                              const loanTenor = getLoanTenor(loan);
-                              const isFinalStep = stepNum === loanTenor;
-                              const isSettled = stepNum > loanTenor;
-                              const stepDate = new Date(now);
-                              stepDate.setMonth(now.getMonth() + stepNum);
-                              const day = loan.dueDateDay || stepDate.getDate();
-                              stepDate.setDate(Math.min(day, 28));
-                              const focusCls =
-                                lIdx === 0
-                                  ? method === 'snowball'
-                                    ? 'text-blue-700'
-                                    : 'text-rose-700'
-                                  : 'text-slate-600';
-                              return (
-                                <td
-                                  key={loan.id}
-                                  className={`px-3 py-2 text-center border border-slate-100 whitespace-nowrap font-semibold ${
-                                    isFinalStep
-                                      ? 'bg-emerald-50 text-emerald-700'
-                                      : isSettled
-                                      ? 'text-slate-300'
-                                      : focusCls
-                                  }`}
-                                >
-                                  {isFinalStep ? '✓ LUNAS' : isSettled ? '—' : formatTanggal(stepDate)}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                      {maxLoanTenor > 24 && (
-                        <tr>
-                          <td
-                            colSpan={sortedLoans.length + 1}
-                            className="px-3 py-2 text-center text-slate-400 italic border border-slate-100"
-                          >
-                            ... dan {maxLoanTenor - 24} bulan berikutnya hingga bulan ke-{maxLoanTenor}
+                      {amortization.rows.map(({ period, cells }) => (
+                        <tr key={period} className="hover:bg-slate-50/50">
+                          <td className="sticky left-0 z-10 bg-white px-3 py-2 font-mono font-bold text-slate-600 border-b border-r border-slate-100 whitespace-nowrap">
+                            Bulan {period}
                           </td>
+                          {cells.map((cell, idx) => {
+                            const col = amortization.columns[idx];
+                            const isFocus = Boolean(method) && col.index === 0;
+                            const focusCls = method === 'snowball' ? 'text-blue-700' : 'text-rose-700';
+                            return (
+                              <React.Fragment key={col.loan.id}>
+                                <td className={`px-3 py-2 text-center border-b border-slate-100 whitespace-nowrap font-semibold ${
+                                  cell.isActive
+                                    ? isFocus
+                                      ? focusCls
+                                      : 'text-slate-600'
+                                    : 'text-slate-300'
+                                }`}>
+                                  {cell.isActive ? cell.platform : ''}
+                                </td>
+                                <td className={`px-3 py-2 text-center border-b border-l border-slate-100 whitespace-nowrap font-semibold ${
+                                  cell.isActive
+                                    ? isFocus
+                                      ? focusCls
+                                      : 'text-slate-700'
+                                    : 'text-slate-300'
+                                }`}>
+                                  {cell.isActive ? formatRupiah(cell.amount) : '0'}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
                         </tr>
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
+                <p className="text-[10px] text-slate-400">
+                  Nominal cicilan sudah termasuk pokok + bunga. Sel bernilai 0 berarti tenor pinjaman sudah habis pada periode tersebut.
+                </p>
               </div>
             )}
           </div>

@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+.bubu-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -4px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background-color: #2563eb;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.25);
+  cursor: pointer;
+}
+
+.bubu-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background-color: #2563eb;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.25);
+  cursor: pointer;
+}

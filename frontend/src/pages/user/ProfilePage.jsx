@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   User,
   Mail,
@@ -17,6 +17,7 @@ import {
   Tag,
   Check,
   RotateCcw,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
@@ -30,6 +31,7 @@ import {
   purchaseAccessory,
 } from '../../services/storage.js';
 import { ACCESSORY_CATALOG } from '../../data/characterAccessories.js';
+import { downloadMascotAsPng } from '../../utils/mascotDownloader.js';
 import BubuCharacter from '../../components/BubuCharacter.jsx';
 
 export default function ProfilePage() {
@@ -48,6 +50,11 @@ export default function ProfilePage() {
   const [avatarRefresh, setAvatarRefresh] = useState(0);
   const [selectedSlotFilter, setSelectedSlotFilter] = useState('all');
   const [accFeedback, setAccFeedback] = useState({ type: '', text: '' });
+
+  // State Unduh Maskot HD
+  const mascotRef = useRef(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadFeedback, setDownloadFeedback] = useState({ type: '', text: '' });
 
   const avatarConfig = useMemo(() => {
     return userId ? getUserAvatarConfig(userId) : { equippedAccessories: [], unlockedAccessories: [] };
@@ -127,6 +134,37 @@ export default function ProfilePage() {
       });
       setTimeout(() => setAccFeedback({ type: '', text: '' }), 4000);
     }
+  };
+
+  const handleDownloadMascot = () => {
+    const svg = mascotRef.current?.querySelector('svg');
+    if (!svg || isDownloading) return;
+
+    setIsDownloading(true);
+    setDownloadFeedback({ type: '', text: '' });
+
+    const safeName = (currentUser?.name || 'profil')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    downloadMascotAsPng(svg, {
+      fileName: `maskot-bubu-${safeName || 'profil'}-hd.png`,
+      size: 2048,
+    })
+      .then((result) => {
+        setDownloadFeedback({
+          type: 'success',
+          text: `Maskot HD ${result.size}x${result.size} berhasil diunduh ke perangkat Anda.`,
+        });
+      })
+      .catch((err) => {
+        setDownloadFeedback({ type: 'error', text: err.message || 'Gagal mengunduh maskot.' });
+      })
+      .finally(() => {
+        setIsDownloading(false);
+        setTimeout(() => setDownloadFeedback({ type: '', text: '' }), 5000);
+      });
   };
 
   const handleUnequipAll = () => {
@@ -275,11 +313,34 @@ export default function ProfilePage() {
               Pratinjau Karakter Anda
             </span>
 
-            <div className="w-44 h-44 rounded-full bg-white p-3 border-4 border-emerald-100 shadow-sm flex items-center justify-center relative">
+            <div
+              ref={mascotRef}
+              className="w-44 h-44 rounded-full bg-white p-3 border-4 border-emerald-100 shadow-sm flex items-center justify-center relative"
+            >
               <BubuCharacter equippedAccessories={avatarConfig.equippedAccessories} size="xl" />
             </div>
 
             <div className="w-full space-y-2 pt-2 border-t border-slate-200/60">
+              <button
+                type="button"
+                onClick={handleDownloadMascot}
+                disabled={isDownloading}
+                className="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer disabled:cursor-wait shadow-xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {isDownloading ? 'Menyiapkan berkas...' : 'Unduh Maskot (HD 2048px)'}
+              </button>
+
+              {downloadFeedback.text && (
+                <p
+                  className={`text-[11px] leading-relaxed ${
+                    downloadFeedback.type === 'error' ? 'text-rose-600' : 'text-emerald-700'
+                  }`}
+                >
+                  {downloadFeedback.text}
+                </p>
+              )}
+
               <div className="flex items-center justify-between text-xs text-slate-600">
                 <span>Aksesori Terpasang:</span>
                 <span className="font-bold text-emerald-700">
